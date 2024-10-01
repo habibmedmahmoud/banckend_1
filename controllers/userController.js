@@ -1,7 +1,9 @@
 // /controllers/userController.js
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto'); 
 const {User,
     validateRegisterUser,validateLoginUser} = require('../models/user'); // Fonction pour l'inscription (signup)
+const  { sendEmail } = require('../Email/testEmail');
 
 
 exports.signup = async (req, res) => {
@@ -24,17 +26,25 @@ exports.signup = async (req, res) => {
         // Hacher le mot de passe
         const hashedPassword = await bcrypt.hash(users_password, 10);
 
+        // Générer un code de vérification aléatoire
+        const verifyCode = crypto.randomInt(10000, 99999).toString();
+
         // Créer un nouvel utilisateur
         const newUser = new User({
             users_name,
             users_password: hashedPassword,
             users_email,
             users_phone,
-            users_verify_code: "0"
+            users_verify_code: verifyCode
         });
 
         // Enregistrer l'utilisateur dans la base de données
         await newUser.save();
+        // Envoyer l'e-mail avec le code de vérification
+        // Envoyer l'e-mail avec le code de vérification
+        const emailSubject = 'Code de vérification';
+        const emailText = `Votre code de vérification est : ${verifyCode}`; // Contenu de l'e-mail avec le code
+        await sendEmail(users_email, emailSubject, emailText); // Envoi du code de vérification par e-mail
 
         return res.status(201).json({ status: 'success', message: 'User created successfully' });
 

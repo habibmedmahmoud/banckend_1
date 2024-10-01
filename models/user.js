@@ -30,8 +30,8 @@ users_phone: {
     trim: true
 },
 users_verify_code: {
-    type: String,
-    default: "0"
+     type: String,
+        default: "0"
 },
 },
 {

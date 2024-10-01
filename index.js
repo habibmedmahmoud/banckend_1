@@ -7,6 +7,7 @@ const auth = require('basic-auth');
 const connectToDB = require('./config/db');
 // Import des routes
 const userRoutes = require('./routes/userRoutes');
+const verifyRouter = require('./Verifycode/verifyCode');
 
 // Initialiser l'application express
 const app = express();
@@ -21,6 +22,7 @@ connectToDB();
 
 // // Utilisation des routes utilisateur
 app.use('/api/users', userRoutes);
+app.use('/api', verifyRouter);
 
 app.get('/', (req, res) => {
     res.send('Le serveur fonctionne correctement !');
