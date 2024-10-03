@@ -33,6 +33,10 @@ users_verify_code: {
      type: String,
         default: "0"
 },
+users_approve: {
+    type: Number,
+    default: 0 // valeur par défaut pour users_approve
+}
 },
 {
     timestamps: true // Ajoute les champs createdAt et updatedAt automatiquement

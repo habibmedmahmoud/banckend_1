@@ -15,8 +15,11 @@ router.post('/verifycode', async (req, res) => {
             return res.status(400).json({ status: 'failure', message: 'Incorrect email or verification code.' });
         }
 
-        // Si le code est correct, vous pouvez activer l'utilisateur ou autre action (par ex. mettre à jour users_verify_code)
+        // Si le code est correct, mettre à jour les champs appropriés
         user.users_verify_code = "0"; // On réinitialise le code de vérification pour éviter une réutilisation
+        user.users_approve = 1; // Changer users_approve vers 1 pour approuver l'utilisateur
+
+        // Sauvegarder les modifications
         await user.save();
 
         return res.status(200).json({ status: 'success', message: 'Account verified successfully.' });
@@ -26,5 +29,6 @@ router.post('/verifycode', async (req, res) => {
         return res.status(500).json({ status: 'failure', message: error.message });
     }
 });
+
 
 module.exports = router;

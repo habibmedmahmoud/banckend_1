@@ -53,41 +53,29 @@ exports.signup = async (req, res) => {
     }
 };
 
-// Fonction pour la connexion (login)
+// Fonction pour vérifier les informations de connexion de l'utilisateur
 exports.login = async (req, res) => {
-    // Valider les données de connexion
-    const { error } = validateLoginUser(req.body);
-    if (error) {
-        return res.status(400).json({ status: 'failure', message: error.details[0].message });
-    }
-
-    const { users_email, users_password } = req.body;
+    const { users_email, users_password } = req.body; // Supposons que vous envoyez l'email et le mot de passe dans le corps de la requête
 
     try {
-        // Vérifier si l'utilisateur existe par email
-        const user = await User.findOne({ users_email });
+        // Vérifier si l'utilisateur existe et est approuvé
+        const user = await User.findOne({ users_email, users_approve: 1 });
+
         if (!user) {
-            return res.status(404).json({ status: 'failure', message: 'Invalid email or password' });
+            return res.status(404).json({ message: 'Utilisateur non trouvé ou non approuvé' });
         }
 
-        // Comparer les mots de passe
+        // Comparer le mot de passe
         const isMatch = await bcrypt.compare(users_password, user.users_password);
+
         if (!isMatch) {
-            return res.status(400).json({ status: 'failure', message: 'Invalid email or password' });
+            return res.status(400).json({ message: 'Mot de passe invalide' });
         }
 
-        // Si tout est correct, renvoyer les informations de l'utilisateur
-        return res.status(200).json({
-            status: 'success',
-            message: 'Login successful',
-            data: {
-                users_name: user.users_name,
-                users_email: user.users_email,
-                users_phone: user.users_phone, // Correction ici, utiliser users_phone au lieu de users_password
-            }
-        });
+        // Authentification réussie
+        res.status(200).json({ message: 'Connexion réussie', user: { users_email: user.users_email } });
 
     } catch (error) {
-        return res.status(500).json({ status: 'failure', message: error.message });
+        res.status(500).json({ message: error.message });
     }
 };
