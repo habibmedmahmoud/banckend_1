@@ -1,7 +1,9 @@
 // controllers/productController.js
 const mongoose = require('mongoose');
 const Category = require('../models/category');
-const  Product  = require('../models/product'); // Assurez-vous d'importer le modèle Product
+const Product = require('../models/product'); // Assurez-vous d'importer le modèle Product
+const Favorite = require('../models/favorite');
+const { Types } = mongoose; // Importation de Types
 
 // وظيفة لاسترجاع جميع المنتجات مع الفئات المرتبطة
 const getAllProducts = async (req, res) => {
@@ -20,68 +22,79 @@ const getAllProducts = async (req, res) => {
     }
 };
 
-// دالة للحصول على جميع المنتجات في فئة معينة
+
+// Fonction pour récupérer les produits par catégorie
 const getProductsByCategory = async (req, res) => {
     try {
-        const categoryId = req.params.categoryId;
+        const categoryId = new mongoose.Types.ObjectId(req.params.categoryId); // ID de la catégorie
+        const userId = new mongoose.Types.ObjectId(req.params.userId); // ID de l'utilisateur
 
-        // تحقق ما إذا كانت الفئة موجودة
+        // Vérifier si la catégorie existe
         const category = await Category.findById(categoryId);
         if (!category) {
             return res.status(404).json({
                 status: 'error',
-                message: 'الفئة غير موجودة'
+                message: 'La catégorie n\'existe pas'
             });
         }
 
-        // جلب المنتجات التي تنتمي إلى الفئة
-        const products = await Product.find({ products_cat: categoryId }).populate('products_cat');
+        // Récupérer les produits favoris de l'utilisateur dans cette catégorie
+        const favoriteProductIds = await Favorite.find({ favorite_usersid: userId })
+            .select('favorite_productsid')
+            .lean()
+            .exec();
 
-        // إرجاع المنتجات في JSON
+        const favoriteProductIdsArray = favoriteProductIds.map(fav => fav.favorite_productsid);
+
+        // Récupérer tous les produits de la catégorie
+        const products = await Product.aggregate([
+            {
+                $match: {
+                    products_cat: categoryId
+                }
+            },
+            {
+                $addFields: {
+                    favorite: {
+                        $cond: {
+                            if: { $in: ['$_id', favoriteProductIdsArray] },
+                            then: 1,
+                            else: 0
+                        }
+                    }
+                }
+            },
+            {
+                $project: {
+                    products_name: 1,
+                    products_name_ar: 1,
+                    products_desc: 1,
+                    products_desc_ar: 1,
+                    products_image: 1,
+                    products_price: 1,
+                    products_discount: 1,
+                    favorite: 1 // Inclure le champ 'favorite'
+                }
+            }
+        ]);
+
+        // Retourner les produits avec l'indicateur 'favorite'
         res.status(200).json({
             status: 'success',
             products: products
         });
+
     } catch (error) {
-        console.error('Error fetching products by category:', error);
+        console.error('Erreur lors de la récupération des produits par catégorie :', error);
         res.status(500).json({
             status: 'error',
-            message: 'خطأ في الخادم'
+            message: 'Erreur serveur'
         });
     }
 };
 
 
-// دالة للحصول على منتج بواسطة ID
-// const getProductById = async (req, res) => {
-//     try {
-//         // تحويل ID إلى ObjectId
-//         const productId = new mongoose.Types.ObjectId(req.params.id); // إضافة new هنا
 
-//         // العثور على المنتج مع تفاصيل الفئة
-//         const product = await Product.findById(productId).populate('products_cat');
-
-//         // التحقق مما إذا كان المنتج موجودًا
-//         if (!product) {
-//             return res.status(404).json({
-//                 status: 'error',
-//                 message: 'المنتج غير موجود'
-//             });
-//         }
-
-//         // إرجاع المنتج
-//         res.status(200).json({
-//             status: 'success',
-//             product: product
-//         });
-//     } catch (error) {
-//         console.error('Error fetching product:', error);
-//         res.status(500).json({
-//             status: 'error',
-//             message: 'خطأ في الخادم'
-//         });
-//     }
-// };
 
 module.exports = {
     

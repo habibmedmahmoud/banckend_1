@@ -1,7 +1,7 @@
 // routes/productRoutes.js
 const express = require('express');
 const router = express.Router();
-const {  getProductsByCategory} = require('../controllers/productController');
+const {getProductsByCategory} = require('../controllers/productController');
 
 
 

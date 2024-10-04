@@ -12,6 +12,7 @@ const checkemailRouter = require('./routes/emailRoutes');
 const categoryRoutes = require('./routes/categoryRoutes'); // Routes des catégories
 const homeRoutes = require('./routes/homeRoutes'); 
 const productRoutes = require('./routes/productRoutes');
+const favoriteRoutes = require('./routes/favoriteRoutes');
 
 
 // Initialiser l'application express
@@ -32,6 +33,7 @@ app.use('/api', checkemailRouter);
 app.use('/api', categoryRoutes);
 app.use('/api', homeRoutes);
 app.use('/api', productRoutes);
+app.use('/api/favorites', favoriteRoutes);
 
 app.get('/', (req, res) => {
     res.send('Le serveur fonctionne correctement !');
