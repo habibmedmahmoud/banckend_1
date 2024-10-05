@@ -5,7 +5,7 @@ const {getProductsByCategory} = require('../controllers/productController');
 
 
 
-router.get('/products/category/:categoryId', getProductsByCategory); // المسار الذي ستستخدمه لجلب المنتجات
-// router.get('/products/:id', getProductById );    
+router.get('/products/category/:categoryId',getProductsByCategory); // المسار الذي ستستخدمه لجلب المنتجات
+    
 
 module.exports = router;

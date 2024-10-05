@@ -13,7 +13,7 @@ const favoriteSchema = new mongoose.Schema({
         required: true
     }
 }, {
-    timestamps: false  // Désactiver les timestamps automatiques si vous ne les voulez pas
+    timestamps: true  // Activer les timestamps pour createdAt et updatedAt
 });
 
 // Créer le modèle à partir du schéma
