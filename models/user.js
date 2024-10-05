@@ -31,7 +31,7 @@ users_phone: {
 },
 users_verify_code: {
      type: String,
-        default: "0"
+      
 },
 users_approve: {
     type: Number,

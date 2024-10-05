@@ -6,6 +6,7 @@ const checkEmailController = require('../controllers/checkEmailController'); // 
 router.post('/check-email', checkEmailController.checkEmail);
 router.post('/checkverifycode', checkEmailController.checkVerifyCode);
 router.post('/reset-password', checkEmailController.resetPassword);
+router.post('/resend-verify-code', checkEmailController.resendVerifyCode);
 
 
 module.exports = router;

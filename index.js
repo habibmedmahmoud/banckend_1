@@ -13,6 +13,7 @@ const categoryRoutes = require('./routes/categoryRoutes'); // Routes des catégo
 const homeRoutes = require('./routes/homeRoutes'); 
 const productRoutes = require('./routes/productRoutes');
 const favoriteRoutes = require('./routes/favoriteRoutes');
+const cartRoutes = require('./routes/cartRoutes');
 
 
 // Initialiser l'application express
@@ -34,6 +35,8 @@ app.use('/api', categoryRoutes);
 app.use('/api', homeRoutes);
 app.use('/api', productRoutes);
 app.use('/api/favorites', favoriteRoutes);
+app.use('/api/cart', cartRoutes);
+
 
 app.get('/', (req, res) => {
     res.send('Le serveur fonctionne correctement !');
