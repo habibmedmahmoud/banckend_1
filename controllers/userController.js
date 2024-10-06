@@ -55,7 +55,7 @@ exports.signup = async (req, res) => {
 
 // Fonction pour vérifier les informations de connexion de l'utilisateur
 exports.login = async (req, res) => {
-    const { users_email, users_password } = req.body; // Supposons que vous envoyez l'email et le mot de passe dans le corps de la requête
+    const { users_email, users_password } = req.body; // Récupération des données d'authentification
 
     try {
         // Vérifier si l'utilisateur existe et est approuvé
@@ -72,8 +72,11 @@ exports.login = async (req, res) => {
             return res.status(400).json({ message: 'Mot de passe invalide' });
         }
 
-        // Authentification réussie
-        res.status(200).json({ message: 'Connexion réussie', user: { users_email: user.users_email } });
+        // Authentification réussie - renvoyer toutes les données de l'utilisateur sauf le mot de passe
+        const userData = user.toObject(); // Convertir l'utilisateur en objet JavaScript simple
+        delete userData.users_password; // Supprimer le mot de passe des données renvoyées
+
+        res.status(200).json({ message: 'Connexion réussie', user: userData });
 
     } catch (error) {
         res.status(500).json({ message: error.message });

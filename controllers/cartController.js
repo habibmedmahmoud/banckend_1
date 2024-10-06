@@ -1,5 +1,7 @@
 // controllers/cartController.js
-const Cart = require('../models/cart');
+const mongoose = require('mongoose'); // Importer mongoose
+const Cart = require('../models/cart'); // Importer le modèle Cart
+const Product = require('../models/product'); // Importer le modèle Product
 
 // Fonction pour ajouter un produit au panier (sans vérifier l'existence)
 // Fonction pour ajouter un produit au panier
@@ -75,3 +77,46 @@ exports.getCountProducts = async (req, res) => {
         res.status(500).json({ error: 'Erreur interne du serveur' }); // Gérer les erreurs
     }
 };
+
+
+exports.getCartView = async (req, res) => {
+    const { usersid } = req.body; // ID de l'utilisateur provenant de la requête
+
+    try {
+        const cartView = await Cart.aggregate([
+            {
+                $lookup: {
+                    from: 'products',
+                    localField: 'cart_productsid',
+                    foreignField: '_id',
+                    as: 'productDetails'
+                }
+            },
+            { $unwind: '$productDetails' },
+            {
+                $match: {
+                    cart_usersid: new mongoose.Types.ObjectId(usersid) // Correction ici
+                }
+            },
+            {
+                $group: {
+                    _id: '$cart_productsid',
+                    countproducts: { $sum: 1 },
+                    totalPrice: { $sum: '$productDetails.products_price' },
+                    productDetails: { $first: '$productDetails' }
+                }
+            }
+        ]);
+
+        if (cartView.length > 0) {
+            res.status(200).json({ status: 'success', data: cartView });
+        } else {
+            res.status(404).json({ status: 'error', message: 'Aucun panier trouvé pour cet utilisateur' });
+        }
+    } catch (error) {
+        console.error('Erreur lors de l\'agrégation du panier :', error);
+        res.status(500).json({ status: 'error', message: 'Erreur serveur' });
+    }
+};
+
+
