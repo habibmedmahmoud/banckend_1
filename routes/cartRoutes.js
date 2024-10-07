@@ -7,7 +7,8 @@ const cartController = require('../controllers/cartController');
 router.post('/add-to-cart', cartController.addToCart);
 router.delete('/delete-from-cart', cartController.deleteFromCart);
 router.get('/get-count-products/:usersid/:productsid', cartController.getCountProducts);
-router.post('/view', cartController.getCartView);
+router.get('/:userid/:productid', cartController.getCartDataByUserAndProduct);
+
 
 
 

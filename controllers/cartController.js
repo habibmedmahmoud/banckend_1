@@ -79,44 +79,92 @@ exports.getCountProducts = async (req, res) => {
 };
 
 
-exports.getCartView = async (req, res) => {
-    const { usersid } = req.body; // ID de l'utilisateur provenant de la requête
 
+// Fonction pour récupérer les données du panier par ID utilisateur et ID produit
+const getCartViewByUserAndProduct = async (userId, productId) => {
     try {
-        const cartView = await Cart.aggregate([
+        const cartViewData = await Cart.aggregate([
             {
                 $lookup: {
-                    from: 'products',
-                    localField: 'cart_productsid',
-                    foreignField: '_id',
-                    as: 'productDetails'
+                    from: "products", // Nom de la collection des produits
+                    localField: "cart_productsid", // Champ dans Cart
+                    foreignField: "_id", // Champ dans Product
+                    as: "productData" // Nom de la sortie
                 }
             },
-            { $unwind: '$productDetails' },
             {
                 $match: {
-                    cart_usersid: new mongoose.Types.ObjectId(usersid) // Correction ici
+                    cart_usersid: new mongoose.Types.ObjectId(userId), // Filtrer par ID d'utilisateur
+                    cart_productsid: new mongoose.Types.ObjectId(productId) // Filtrer par ID de produit
                 }
+            },
+            {
+                $unwind: "$productData" // Déplier le tableau résultant de $lookup
             },
             {
                 $group: {
-                    _id: '$cart_productsid',
-                    countproducts: { $sum: 1 },
-                    totalPrice: { $sum: '$productDetails.products_price' },
-                    productDetails: { $first: '$productDetails' }
+                    _id: "$cart_usersid", // Regrouper par ID d'utilisateur
+                    productsprice: { $sum: "$productData.products_price" }, // Somme des prix des produits
+                    countproducts: { $sum: 1 }, // Nombre de produits
+                    carts: {
+                        $push: {
+                            _id: "$_id",
+                            cart_usersid: "$cart_usersid",
+                            cart_productsid: "$cart_productsid",
+                            products_id: "$productData._id",
+                            products_name: "$productData.products_name",
+                            products_name_ar: "$productData.products_name_ar",
+                            products_desc: "$productData.products_desc",
+                            products_desc_ar: "$productData.products_desc_ar",
+                            products_image: "$productData.products_image",
+                            products_count: "$productData.products_count",
+                            products_active: "$productData.products_active",
+                            products_price: "$productData.products_price",
+                            products_discount: "$productData.products_discount",
+                            products_cat: "$productData.products_cat",
+                            productsprice: "$productData.products_price", // Ajout du prix du produit à chaque entrée
+                            countproducts: 1 // Nombre de produits individuels dans chaque entrée
+                        }
+                    }
                 }
             }
         ]);
 
-        if (cartView.length > 0) {
-            res.status(200).json({ status: 'success', data: cartView });
-        } else {
-            res.status(404).json({ status: 'error', message: 'Aucun panier trouvé pour cet utilisateur' });
-        }
+        return cartViewData;
+
     } catch (error) {
-        console.error('Erreur lors de l\'agrégation du panier :', error);
-        res.status(500).json({ status: 'error', message: 'Erreur serveur' });
+        console.error("Error fetching cart view data:", error);
+        throw error;
     }
 };
 
+// Contrôleur pour récupérer les données du panier pour un utilisateur et un produit
+exports.getCartDataByUserAndProduct = async (req, res) => {
+    const userId = req.params.userid;
+    const productId = req.params.productid;
 
+    try {
+        const cartViewData = await getCartViewByUserAndProduct(userId, productId);
+
+        if (cartViewData.length > 0) {
+            res.json({
+                status: "success",
+                datacart: cartViewData[0].carts.map(cart => ({
+                    ...cart, 
+                    productsprice: cart.productsprice, // Le prix du produit à chaque élément
+                    countproducts: cart.countproducts // Le nombre de produits à chaque élément
+                })),
+                countprice: {
+                    totalprice: cartViewData[0].productsprice, // Prix total de tous les produits
+                    totalcout: cartViewData[0].countproducts  // Nombre total de produits dans le panier
+                }
+            });
+        } else {
+            res.json({ status: "error", message: "No cart data found for this user and product" });
+        }
+
+    } catch (error) {
+        console.error("Error fetching cart data:", error);
+        res.status(500).json({ status: "error", message: "An error occurred while fetching cart data" });
+    }
+};
