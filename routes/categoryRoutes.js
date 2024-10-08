@@ -10,7 +10,7 @@ const {
 // router.post('/categories', createCategory);
 
 // Route pour obtenir toutes les catégories
-router.get('/categories', getAllCategories);
+// router.get('/categories', getAllCategories);
 
 // // Route pour obtenir une catégorie par ID
 // router.get('/categories/:id', getCategoryById);

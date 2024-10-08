@@ -14,6 +14,7 @@ const homeRoutes = require('./routes/homeRoutes');
 const productRoutes = require('./routes/productRoutes');
 const favoriteRoutes = require('./routes/favoriteRoutes');
 const cartRoutes = require('./routes/cartRoutes');
+const AddressRoutes = require('./routes/address');
 
 
 // Initialiser l'application express
@@ -31,11 +32,12 @@ connectToDB();
 app.use('/api/users', userRoutes);
 app.use('/api', verifyRouter);
 app.use('/api', checkemailRouter);
-app.use('/api', categoryRoutes);
-app.use('/api', homeRoutes);
-app.use('/api', productRoutes);
+app.use('/api/categories', categoryRoutes);
+app.use('/api/home', homeRoutes);
+app.use('/api/product', productRoutes);
 app.use('/api/favorites', favoriteRoutes);
 app.use('/api/cart', cartRoutes);
+app.use('/api/address', AddressRoutes);
 
 
 app.get('/', (req, res) => {

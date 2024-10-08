@@ -7,113 +7,77 @@ const { Types } = mongoose; // Importation de Types
 
 
 
-
-const getProductsByCategory = async (req, res) => {
+// Fonction pour rechercher les produits
+const searchProducts = async (req, res) => {
     try {
-        const categoryId = new mongoose.Types.ObjectId(req.params.categoryId); // ID التصنيف الذي تم اختياره
-        const userId = new mongoose.Types.ObjectId(req.params.userId); // ID المستخدم
+      // Récupération du terme de recherche depuis la requête
+      const search = (req.query.search || '').trim();
+  
+      // Vérification si un terme de recherche est fourni
+      if (!search) {
+        return res.status(400).json({ message: 'Veuillez fournir un terme de recherche' });
+      }
+  
+      // Recherche dans MongoDB avec les expressions régulières (similaire à LIKE en SQL)
+      const products = await Product.find({
+        $or: [
+          { products_name: { $regex: search, $options: 'i' } }, // Recherche dans le champ products_name
+          { products_name_ar: { $regex: search, $options: 'i' } } // Recherche dans le champ products_name_ar
+        ]
+      });
+  
+      // Si aucun produit n'est trouvé
+      if (products.length === 0) {
+        return res.status(404).json({ message: 'Aucun produit trouvé' });
+      }
+  
+      // Retourner les produits trouvés
+      res.json(products);
+  
+    } catch (err) {
+      // Gestion des erreurs serveur
+      res.status(500).json({ message: 'Erreur serveur', error: err });
+    }
+  };
 
-        // التحقق من أن التصنيف موجود
-        const category = await Category.findById(categoryId);
-        if (!category) {
-            return res.status(404).json({
-                status: 'error',
-                message: 'التصنيف غير موجود'
-            });
+  const getProductsByCategory = async (req, res) => {
+    const categoryId = req.params.categoryId; // _id الخاص بالفئة
+    const userId = req.query.userId; // يمكن أن يكون undefined إذا لم يتم تمريره
+
+    try {
+        // ابحث عن المنتجات التي تنتمي إلى الفئة باستخدام الحقل products_cat
+        const products = await Product.find({ products_cat: categoryId }).lean();
+
+        // إذا كان userId موجودًا، احصل على المنتجات المفضلة
+        let favorites = [];
+        if (userId) {
+            favorites = await Favorite.find({ favorite_usersid: userId }).lean();
         }
 
-        // استخدام الـ Aggregation Pipeline لجلب المنتجات الخاصة بالتصنيف المحدد فقط
-        const products = await Product.aggregate([
-            // فلترة المنتجات بناءً على التصنيف
-            {
-                $match: {
-                    products_cat: categoryId // المنتجات التي تنتمي إلى التصنيف المختار
-                }
-            },
-            // دمج المنتجات مع الفئات للحصول على معلومات الفئة
-            {
-                $lookup: {
-                    from: 'categories',
-                    localField: 'products_cat',
-                    foreignField: '_id',
-                    as: 'categoryInfo'
-                }
-            },
-            // فك تجميع معلومات الفئة
-            {
-                $unwind: { path: '$categoryInfo', preserveNullAndEmptyArrays: true }
-            },
-            // جلب بيانات المفضلات الخاصة بالمستخدم
-            {
-                $lookup: {
-                    from: 'favorites',
-                    localField: '_id',
-                    foreignField: 'favorite_productsid',
-                    as: 'favoriteInfo'
-                }
-            },
-            // فك تجميع المفضلات
-            {
-                $unwind: { path: '$favoriteInfo', preserveNullAndEmptyArrays: true }
-            },
-            // إضافة حقل "favorite" لتحديد ما إذا كان المنتج مفضلاً للمستخدم
-            {
-                $addFields: {
-                    favorite: {
-                        $cond: {
-                            if: {
-                                $and: [
-                                    { $eq: ['$favoriteInfo.favorite_usersid', userId] }, // تحقق ما إذا كان المنتج مفضلاً
-                                    { $ne: ['$favoriteInfo', null] } // المنتج موجود في المفضلة
-                                ]
-                            },
-                            then: 1,
-                            else: 0
-                        }
-                    }
-                }
-            },
-            // تحديد الحقول التي نريد إرجاعها
-            {
-                $project: {
-                    products_id: '$_id',
-                    products_name: 1,
-                    products_name_ar: 1,
-                    products_desc: 1,
-                    products_desc_ar: 1,
-                    products_image: 1,
-                    products_count: 1,
-                    products_active: 1,
-                    products_price: 1,
-                    products_discount: 1,
-                    products_date: 1,
-                    'categoryInfo.categories_id': 1,
-                    'categoryInfo.categories_name': 1,
-                    'categoryInfo.categories_name_ar': 1,
-                    'categoryInfo.categories_image': 1,
-                    'categoryInfo.categories_datetime': 1,
-                    favorite: 1 // إضافة حقل "favorite" في النتائج
-                }
-            }
-        ]);
+        // قائمة بمعرفات المنتجات المفضلة للمستخدم
+        const favoriteProductIds = favorites.map(fav => fav.favorite_productsid.toString());
 
-        // التحقق إذا لم يتم العثور على منتجات
-        if (!products.length) {
-            return res.status(404).json({ message: "لا توجد منتجات في هذا التصنيف." });
-        }
-
-        // إرجاع المنتجات الخاصة بالتصنيف
-        res.status(200).json({
-            status: 'success',
-            products: products
+        // إعادة هيكلة البيانات لتحديد ما إذا كانت المنتجات مفضلة أو غير مفضلة وحساب السعر المخفض
+        const result = products.map(product => {
+            const isFavorite = favoriteProductIds.includes(product._id.toString());
+            const discountedPrice = product.products_price - (product.products_price * product.products_discount / 100);
+            return {
+                ...product,
+                favorite: isFavorite ? 1 : 0, // 1 للمنتجات المفضلة و 0 لغير المفضلة
+                productspricediscount: discountedPrice
+            };
         });
 
+        // إذا لم توجد منتجات في هذه الفئة
+        if (result.length === 0) {
+            return res.status(404).json({ status: "failure", message: "Aucune produit trouvée pour cette catégorie." });
+        }
+
+        // إعادة المنتجات المفضلة وغير المفضلة
+        res.status(200).json({ status: "success", data: result });
     } catch (error) {
-        console.error('Erreur lors de la récupération des produits par catégorie :', error);
-        res.status(500).json({
-            status: 'error',
-            message: 'Erreur serveur'
-        });
+        console.error(error);
+        res.status(500).json({ status: "failure", message: "Erreur interne du serveur" });
     }
 };
 
@@ -121,7 +85,14 @@ const getProductsByCategory = async (req, res) => {
 
 
 
+
+
+
+
+
+
 module.exports = {
-    getProductsByCategory
+    getProductsByCategory ,
+    searchProducts
    
 };
