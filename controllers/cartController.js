@@ -9,7 +9,19 @@ exports.addToCart = async (req, res) => {
     const { usersid, productsid } = req.body;
 
     try {
-        // Ajouter directement un nouveau produit au panier sans vérifier si le produit existe déjà
+        // Vérifier si le produit existe déjà dans le panier de l'utilisateur
+        const existingCartItem = await Cart.findOne({
+            cart_usersid: usersid,
+            cart_productsid: productsid,
+            cart_orders: null // ou cart_orders: 0 si vous préférez cela
+        });
+
+        // Si l'élément existe déjà, retourner un message approprié
+        if (existingCartItem) {
+            return res.status(400).json({ message: 'Le produit est déjà dans le panier.' });
+        }
+
+        // Ajouter un nouveau produit au panier
         const newCartItem = new Cart({
             cart_usersid: usersid,
             cart_productsid: productsid
@@ -33,16 +45,17 @@ exports.deleteFromCart = async (req, res) => {
     const { usersid, productsid } = req.body;
 
     try {
-        // Trouver et supprimer un produit du panier basé sur l'utilisateur et le produit
+        // Trouver et supprimer un produit du panier basé sur l'utilisateur, le produit et où cart_orders = 0
         const deletedCartItem = await Cart.findOneAndDelete({
             cart_usersid: usersid,
-            cart_productsid: productsid
+            cart_productsid: productsid,
+            cart_orders: null // Condition pour vérifier que cart_orders est égal à 0
         });
 
         // Vérifier si le produit existait dans le panier
         if (!deletedCartItem) {
-            // Produit non trouvé, retourner un message
-            return res.status(404).json({ message: 'Produit non trouvé dans le panier.' });
+            // Produit non trouvé ou condition non remplie, retourner un message
+            return res.status(404).json({ message: 'Produit non trouvé dans le panier ou la commande est déjà traitée.' });
         }
 
         // Réponse réussie si la suppression a eu lieu
@@ -53,6 +66,8 @@ exports.deleteFromCart = async (req, res) => {
         res.status(500).json({ message: 'Erreur serveur lors de la suppression du produit du panier.' });
     }
 };
+
+
 
 // Contrôleur pour obtenir le nombre de produits pour un utilisateur et un produit spécifique
 // Contrôleur pour obtenir le nombre de produits pour un utilisateur et un produit spécifique
@@ -79,7 +94,6 @@ exports.getCountProducts = async (req, res) => {
 };
 
 
-
 // Fonction pour récupérer les données du panier par ID utilisateur et ID produit
 const getCartViewByUserAndProduct = async (userId, productId) => {
     try {
@@ -95,7 +109,8 @@ const getCartViewByUserAndProduct = async (userId, productId) => {
             {
                 $match: {
                     cart_usersid: new mongoose.Types.ObjectId(userId), // Filtrer par ID d'utilisateur
-                    cart_productsid: new mongoose.Types.ObjectId(productId) // Filtrer par ID de produit
+                    cart_productsid: new mongoose.Types.ObjectId(productId), // Filtrer par ID de produit
+                    cart_orders: null // Ajout de la condition pour cart_orders
                 }
             },
             {
@@ -137,6 +152,7 @@ const getCartViewByUserAndProduct = async (userId, productId) => {
         throw error;
     }
 };
+
 
 // Contrôleur pour récupérer les données du panier pour un utilisateur et un produit
 exports.getCartDataByUserAndProduct = async (req, res) => {

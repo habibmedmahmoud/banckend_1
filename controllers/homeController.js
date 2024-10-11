@@ -30,7 +30,9 @@ async function getAllDataHome(req, res) {
                     products_count: product.products_count, // عدد المنتجات المتاحة
                     products_active: product.products_active, // حالة المنتج (مفعل/غير مفعل)
                     products_price: product.products_price, // سعر المنتج
-                    products_discount: product.products_discount, // نسبة الخصم
+                    products_discount: product.products_discount,
+                     // نسبة الخصم
+                    products_cat: product.products_cat,
                     categories_id: category._id || null, // ID الفئة
                     categories_name: category.categories_name || 'غير محدد', // اسم الفئة أو قيمة افتراضية
                     categories_name_ar: category.categories_name_ar || 'غير محدد', // اسم الفئة بالعربية أو قيمة افتراضية

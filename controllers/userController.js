@@ -55,6 +55,11 @@ exports.signup = async (req, res) => {
 
 // Fonction pour vérifier les informations de connexion de l'utilisateur
 exports.login = async (req, res) => {
+
+    // Valider les données de la requête
+    const { error } = validateLoginUser(req.body);
+    if (error) return res.status(400).json({ message: error.details[0].message });
+
     const { users_email, users_password } = req.body; // Récupération des données d'authentification
 
     try {

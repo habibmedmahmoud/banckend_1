@@ -8,6 +8,11 @@ const addressSchema = new mongoose.Schema({
         ref: 'User',
         required: true
     },
+    address_name :{
+        type: String,
+        required: true,
+        trim: true
+    },
     address_city: {
         type: String,
         required: true,
@@ -34,7 +39,8 @@ const addressSchema = new mongoose.Schema({
 
 const validateAddAddress = (data) => {
     const schema = Joi.object({
-        address_usersid: Joi.string().required(),  // usersid est obligatoire
+        address_usersid: Joi.string().required(),
+        address_name: Joi.string().trim().max(255).required(),   // usersid est obligatoire
         address_city: Joi.string().min(2).max(255).required(),  // La ville doit avoir entre 2 et 255 caractères
         address_street: Joi.string().min(2).max(255).required(),  // La rue doit avoir entre 2 et 255 caractères
         address_lat: Joi.number().required(),  // Latitude obligatoire
@@ -44,11 +50,24 @@ const validateAddAddress = (data) => {
     return schema.validate(data);
 };
 
+const validateUpdateAddress = (data) => {
+    const schema = Joi.object({
+        address_name: Joi.string().trim().max(255).optional(),
+        address_city: Joi.string().min(2).max(255).optional(),
+        address_street: Joi.string().min(2).max(255).optional(),
+        address_lat: Joi.number().optional(),
+        address_long: Joi.number().optional()
+    });
+
+    return schema.validate(data);
+};
+
+
 // Créer le modèle Mongoose à partir du schéma d'adresse
 const Address = mongoose.model('Address', addressSchema);
 
 module.exports = {
  Address,
- validateAddAddress
+ validateAddAddress ,validateUpdateAddress
 
 }

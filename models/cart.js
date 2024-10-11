@@ -11,6 +11,11 @@ const cartSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Product', // Référence au modèle Product
         required: true
+    },
+    cart_orders: {
+        type: mongoose.Schema.Types.ObjectId, // Changez cela en ObjectId pour référencer les commandes
+        ref: 'Order', // Référence au modèle Order
+        default: null // Valeur par défaut à null (pas de commande associée)
     }
 }, { timestamps: true }); // Active createdAt et updatedAt
 

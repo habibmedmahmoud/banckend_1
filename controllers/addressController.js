@@ -1,5 +1,5 @@
 // controllers/addressController.js
-const { Address, validateAddAddress } = require('../models/address');
+const { Address, validateAddAddress, validateUpdateAddress } = require('../models/address');
 
 const addAddress = async (req, res) => {
     try {
@@ -7,11 +7,12 @@ const addAddress = async (req, res) => {
         const { error } = validateAddAddress(req.body);
         if (error) return res.status(400).json({ status: 'error', message: error.details[0].message });
 
-        const { address_usersid, address_city, address_street, address_lat, address_long } = req.body;
+        const { address_usersid,address_name , address_city, address_street, address_lat, address_long } = req.body;
 
         // Créer une nouvelle adresse
         const newAddress = new Address({
             address_usersid,
+            address_name,
             address_city,
             address_street,
             address_lat,
@@ -37,11 +38,17 @@ const addAddress = async (req, res) => {
 
 const updateAddress = async (req, res) => {
     try {
-        // Extraire les données depuis la requête
-        const { addressid, address_city, address_street, address_lat, address_long } = req.body;
+         // Valider les données reçues avec Joi
+         const { error } = validateUpdateAddress(req.body);
+         if (error) return res.status(400).json({ status: 'error', message: error.details[0].message });
+        // Extraire l'ID de l'adresse depuis les paramètres de l'URL
+        const { id } = req.params;  // Récupérer l'ID depuis l'URL
+
+        // Extraire les données du corps de la requête
+        const { address_name, address_city, address_street, address_lat, address_long } = req.body;
 
         // Vérifier que l'ID de l'adresse est fourni
-        if (!addressid) {
+        if (!id) {
             return res.status(400).json({
                 status: 'error',
                 message: 'L\'ID de l\'adresse est requis'
@@ -50,12 +57,13 @@ const updateAddress = async (req, res) => {
 
         // Mise à jour de l'adresse
         const updatedAddress = await Address.findByIdAndUpdate(
-            addressid,  // Utilisez l'ID de l'adresse à mettre à jour
+            id,  // Utilisez l'ID de l'adresse récupéré dans les paramètres
             {
                 address_city,   // Nouvelle valeur de la ville
                 address_street, // Nouvelle valeur de la rue
                 address_lat,    // Nouvelle valeur de latitude
-                address_long    // Nouvelle valeur de longitude
+                address_long,   // Nouvelle valeur de longitude
+                address_name    // Nouvelle valeur de nom
             },
             { new: true } // Retourner l'adresse mise à jour après l'opération
         );
@@ -83,6 +91,9 @@ const updateAddress = async (req, res) => {
         });
     }
 };
+
+
+
 
 
 const deleteAddress = async (req, res) => {
