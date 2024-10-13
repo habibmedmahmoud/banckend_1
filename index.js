@@ -17,6 +17,7 @@ const cartRoutes = require('./routes/cartRoutes');
 const AddressRoutes = require('./routes/address');
 const couponRoutes = require('./routes/couponRoutes');
 const ordersRoutes = require('./routes/orderRoutes');
+const NotificationRoutes = require('./routes/notificationRoute');
 
 
 // Initialiser l'application express
@@ -42,6 +43,7 @@ app.use('/api/cart', cartRoutes);
 app.use('/api/address', AddressRoutes);
 app.use('/api/coupon', couponRoutes);
 app.use('/api/orders', ordersRoutes);
+app.use('/api', NotificationRoutes);
 
 
 app.get('/', (req, res) => {

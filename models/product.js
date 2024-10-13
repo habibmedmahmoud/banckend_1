@@ -51,7 +51,12 @@ const productSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Category',
         required: true
+    },
+    favorite: {
+        type: Boolean,
+        default: false // false par défaut (non favori)
     }
+    
 }, { timestamps: true }); // Active createdAt et updatedAt
 
 // Créer le modèle de produit

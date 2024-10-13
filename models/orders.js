@@ -26,8 +26,9 @@ const orderSchema = new mongoose.Schema({
         required: true
     },
     orders_coupon: {
-        type: Number,   // Coupon utilisé pour la commande
-        default: 0
+        type: mongoose.Schema.Types.ObjectId,  // Référence à un coupon
+        ref: 'Coupon',  // Optionnel, mais peut aider pour les jointures
+        default: null  // Valeur par défaut si nécessaire
     },
     orders_datetime: {
         type: Date,     // Date de création de la commande
@@ -39,6 +40,14 @@ const orderSchema = new mongoose.Schema({
         enum: [0, 1],   // Limite les valeurs à 0 ou 1
         default: 0,
         required: true
+    },
+    orders_totalprice: {
+        type: Number,
+        default: 0,
+    },
+    orders_status: {
+        type: Number,
+        default: 0,
     }
 }, {
     timestamps: true   // Ajoute automatiquement createdAt et updatedAt
@@ -47,4 +56,4 @@ const orderSchema = new mongoose.Schema({
 // Créer le modèle Order à partir du schéma
 const Order = mongoose.model('Order', orderSchema);
 
-module.exports = Order;
+module.exports = Order;  // Assurez-vous que cette lign

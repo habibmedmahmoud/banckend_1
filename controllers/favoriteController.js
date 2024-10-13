@@ -61,9 +61,19 @@ const toggleFavorite = async (req, res) => {
             favorite_productsid: new mongoose.Types.ObjectId(productsid),
         });
 
+        // Rechercher le produit pour le mettre à jour
+        const product = await Product.findById(new mongoose.Types.ObjectId(productsid));
+
+        if (!product) {
+            return res.status(404).json({ status: 'error', message: 'Produit non trouvé' });
+        }
+
         if (favorite) {
             // Si le produit est déjà dans les favoris, on le supprime
             await Favorite.deleteOne({ _id: favorite._id });
+            // Mettre à jour le champ favorite à false
+            product.favorite = false; // Mise à jour à false
+            await product.save();
             return res.status(200).json({
                 status: 'success',
                 message: 'Le produit a été retiré des favoris avec succès'
@@ -76,6 +86,9 @@ const toggleFavorite = async (req, res) => {
             });
 
             await newFavorite.save();
+            // Mettre à jour le champ favorite à true
+            product.favorite = true; // Mise à jour à true
+            await product.save();
             return res.status(200).json({
                 status: 'success',
                 message: 'Le produit a été ajouté aux favoris avec succès'
@@ -90,6 +103,7 @@ const toggleFavorite = async (req, res) => {
 
 
 
+
 const removeFavorite = async (req, res) => {
     try {
         const id = req.params.id; // Récupérer l'id du favori depuis les paramètres de l'URL
@@ -99,11 +113,20 @@ const removeFavorite = async (req, res) => {
             return res.status(400).json({ status: 'error', message: 'ID de favori invalide' });
         }
 
-        // Vérifier si le favori existe et le supprimer
-        const result = await Favorite.findByIdAndDelete(id);
-
-        if (!result) {
+        // Vérifier si le favori existe
+        const favorite = await Favorite.findById(id);
+        if (!favorite) {
             return res.status(404).json({ status: 'error', message: 'Favori non trouvé' });
+        }
+
+        // Supprimer le favori
+        await Favorite.deleteOne({ _id: id });
+
+        // Mettre à jour le champ 'favorite' du produit associé à false
+        const product = await Product.findById(favorite.favorite_productsid);
+        if (product) {
+            product.favorite = false; // Mise à jour à false
+            await product.save();
         }
 
         res.status(200).json({ status: 'success', message: 'Favori supprimé avec succès' });
@@ -112,6 +135,7 @@ const removeFavorite = async (req, res) => {
         res.status(500).json({ status: 'error', message: 'Erreur serveur' });
     }
 };
+
 
 
 

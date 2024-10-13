@@ -40,7 +40,7 @@ const searchProducts = async (req, res) => {
     }
   };
 
-  const getProductsByCategory = async (req, res) => {
+const getProductsByCategory = async (req, res) => {
     const categoryId = req.params.categoryId; // _id الخاص بالفئة
     const userId = req.query.userId; // يمكن أن يكون undefined إذا لم يتم تمريره
 
@@ -63,7 +63,7 @@ const searchProducts = async (req, res) => {
             const discountedPrice = product.products_price - (product.products_price * product.products_discount / 100);
             return {
                 ...product,
-                favorite: isFavorite ? 1 : 0, // 1 للمنتجات المفضلة و 0 لغير المفضلة
+                favorite: isFavorite ? 1 : product.favorite, // Utiliser le champ favorite du produit
                 productspricediscount: discountedPrice
             };
         });
@@ -80,13 +80,6 @@ const searchProducts = async (req, res) => {
         res.status(500).json({ status: "failure", message: "Erreur interne du serveur" });
     }
 };
-
-
-
-
-
-
-
 
 
 
