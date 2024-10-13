@@ -106,26 +106,26 @@ const toggleFavorite = async (req, res) => {
 
 const removeFavorite = async (req, res) => {
     try {
-        const id = req.params.id; // Récupérer l'id du favori depuis les paramètres de l'URL
+        const { usersid, productsid } = req.body; 
 
-        // Vérifier si l'id est un ObjectId valide
-        if (!mongoose.Types.ObjectId.isValid(id)) {
-            return res.status(400).json({ status: 'error', message: 'ID de favori invalide' });
+        if (!mongoose.Types.ObjectId.isValid(usersid) || !mongoose.Types.ObjectId.isValid(productsid)) {
+            return res.status(400).json({ status: 'error', message: 'IDs invalides' });
         }
 
-        // Vérifier si le favori existe
-        const favorite = await Favorite.findById(id);
+        const favorite = await Favorite.findOne({ 
+            favorite_usersid: usersid, 
+            favorite_productsid: productsid 
+        });
+        
         if (!favorite) {
             return res.status(404).json({ status: 'error', message: 'Favori non trouvé' });
         }
 
-        // Supprimer le favori
-        await Favorite.deleteOne({ _id: id });
+        await Favorite.deleteOne({ _id: favorite._id });
 
-        // Mettre à jour le champ 'favorite' du produit associé à false
-        const product = await Product.findById(favorite.favorite_productsid);
+        const product = await Product.findById(productsid);
         if (product) {
-            product.favorite = false; // Mise à jour à false
+            product.favorite = false; 
             await product.save();
         }
 
@@ -135,6 +135,8 @@ const removeFavorite = async (req, res) => {
         res.status(500).json({ status: 'error', message: 'Erreur serveur' });
     }
 };
+
+
 
 
 

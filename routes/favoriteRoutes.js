@@ -10,7 +10,7 @@ router.get('/', getMyFavorites );
 
 router.post('/toggle',toggleFavorite );
 
-router.delete('/:id',removeFavorite );
+router.post('/remove-favorite',removeFavorite );
 
 
 
