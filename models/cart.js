@@ -13,10 +13,11 @@ const cartSchema = new mongoose.Schema({
         required: true
     },
     cart_orders: {
-        type: mongoose.Schema.Types.ObjectId, // Changez cela en ObjectId pour référencer les commandes
+        type: mongoose.Schema.Types.ObjectId, // Utiliser ObjectId pour référencer une commande
         ref: 'Order', // Référence au modèle Order
-        default: null // Valeur par défaut à null (pas de commande associée)
+        default: null // Aucune commande par défaut
     }
+    
 }, { timestamps: true }); // Active createdAt et updatedAt
 
 // Créer le modèle de panier

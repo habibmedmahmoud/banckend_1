@@ -7,62 +7,92 @@ const Address = require('../models/address'); // Modèle d'adresse
 
 
 
-
 const createOrder = async (req, res) => {
     try {
-        const { orders_usersid, orders_address, orders_type, orders_pricedelivery, orders_price, orders_coupon, orders_payment } = req.body;
+        const { 
+            usersid, 
+            addressid, 
+            orderstype, 
+            pricedelivery, 
+            ordersprice, 
+            couponid, 
+            paymentmethod 
+        } = req.body;
 
-        let totalprice = orders_price + orders_pricedelivery;
+        // تحقق من وجود البيانات المدخلة
+        if (!usersid || !addressid || !ordersprice || !paymentmethod) {
+            return res.status(400).json({ message: 'الرجاء تقديم جميع البيانات المطلوبة' });
+        }
 
-        // Vérifier la validité du coupon si fourni
-        if (orders_coupon) {
+        let deliveryPrice = orderstype === 1 ? 0 : pricedelivery;
+        let totalprice = ordersprice + deliveryPrice;
+
+        // Vérification de la validité du coupon
+        if (couponid) {
             const now = new Date();
-            const coupon = await Coupon.findOne({ 
-                _id: new mongoose.Types.ObjectId(orders_coupon), 
-                coupon_expiredate: { $gt: now }, 
+            const coupon = await Coupon.findOne({
+                _id: new mongoose.Types.ObjectId(couponid),
+                coupon_expiredate: { $gt: now },
                 coupon_count: { $gt: 0 }
             });
 
             if (coupon) {
-                totalprice = totalprice - (orders_price * coupon.coupon_discount / 100);
-
-                // Mettre à jour le nombre de coupons
-                coupon.coupon_count -= 1;
-                await coupon.save();
+                totalprice -= (ordersprice * coupon.coupon_discount) / 100;
+                coupon.coupon_count -= 1;  
+                await coupon.save();  
+            } else {
+                return res.status(400).json({ message: 'كوبون غير صالح أو انتهت صلاحيته' });
             }
         }
 
-        // Créer une nouvelle commande
+        // Créer un nouvel ordre
         const newOrder = new Order({
-            orders_usersid,
-            orders_address,
-            orders_type,
-            orders_pricedelivery,
-            orders_price,
-            orders_coupon: orders_coupon ? new mongoose.Types.ObjectId(orders_coupon) : null,
-            orders_payment,
+            orders_usersid: new mongoose.Types.ObjectId(usersid),
+            orders_address: new mongoose.Types.ObjectId(addressid),
+            orders_type: orderstype,
+            orders_pricedelivery: deliveryPrice,
+            orders_price: ordersprice,
+            orders_coupon: couponid ? new mongoose.Types.ObjectId(couponid) : null,
+            orders_payment: paymentmethod,
             orders_totalprice: totalprice
         });
 
         // Enregistrer la commande dans la base de données
         await newOrder.save();
 
+        // Mettre à jour le panier avec l'ID de la nouvelle commande
+        await Cart.updateMany(
+            { cart_usersid: usersid, cart_orders: null }, // Met à jour seulement ceux qui n'ont pas de commande
+            { $set: { cart_orders: newOrder._id } } // Utilise l'ID de la nouvelle commande
+        );
+
         res.status(201).json({ message: 'Order created successfully', order: newOrder });
+
     } catch (error) {
-        res.status(400).json({ message: 'Order validation failed', error: error.message });
+        res.status(400).json({ message: 'Order creation failed', error: error.message });
     }
 };
 
+
+
 const getAllOrders = async (req, res) => {
     try {
-        // البحث عن جميع الطلبات باستخدام Mongoose
-        const orders = await Order.find();
-        
-        // تحقق مما إذا تم العثور على أي طلبات
+        const { page = 1, limit = 10 } = req.query; // Paramètres de pagination
+
+        // Recherche des commandes avec pagination et tri par date de création
+        const orders = await Order.find()
+            .sort({ createdAt: -1 }) // Tri décroissant par date de création
+            .skip((page - 1) * limit) // Sauter les résultats précédents pour la pagination
+            .limit(Number(limit)); // Limiter le nombre de résultats
+
+        // Vérification de la longueur des commandes trouvées
         if (orders.length > 0) {
             res.status(200).json({
                 message: 'Orders retrieved successfully',
-                orders
+                orders,
+                currentPage: page,
+                totalOrders: await Order.countDocuments(), // Total des commandes pour la pagination
+                totalPages: Math.ceil(await Order.countDocuments() / limit) // Calcul des pages totales
             });
         } else {
             res.status(404).json({
@@ -76,50 +106,8 @@ const getAllOrders = async (req, res) => {
         });
     }
 };
-// const getordersview = async (req, res) => {
-//     try {
-//         const userId = req.params.userId; // Assurez-vous de passer l'ID de l'utilisateur en paramètre
 
-//         // Rechercher les commandes de l'utilisateur, filtrer par orders_status != 4
-//         const orders = await Order.find({ 
-//                 orders_usersid: userId, 
-//                 orders_status: { $ne: 4 } // Exclure les commandes avec status 4
-//             })
-//             .populate('orders_address') // Récupérer les détails de l'adresse
-//             .exec();
 
-//         // Formater la réponse pour inclure les informations des commandes et des adresses
-//         const formattedOrders = orders.map(order => ({
-//             _id: order._id.toString(), // Convertir _id en chaîne pour la compatibilité
-//             orders_usersid: order.orders_usersid,
-//             orders_totalprice: order.orders_totalprice,
-//             orders_status: order.orders_status,
-//             orders_type: order.orders_type,
-//             orders_pricedelivery: order.orders_pricedelivery,
-//             orders_price: order.orders_price,
-//             orders_payment: order.orders_payment,
-//             orders_datetime: order.orders_datetime,
-//             address: order.orders_address ? { // Vérifier si orders_address est défini
-//                 addressId: order.orders_address._id.toString(),
-//                 address_name: order.orders_address.address_name,
-//                 address_city: order.orders_address.address_city,
-//                 address_street: order.orders_address.address_street,
-//                 address_lat: order.orders_address.address_lat,
-//                 address_long: order.orders_address.address_long,
-//             } : null // Si l'adresse n'existe pas, mettre null
-//         }));
-
-//         // Retourner la réponse dans le format souhaité
-//         return res.status(200).json({
-//             status: "success",
-//             data: formattedOrders
-//         });
-//     } catch (error) {
-//         return res.status(500).json({ message: error.message });
-//     }
-// };
-
-// استرجاع جميع الطلبات المرتبطة بمستخدم معين والتي حالتها ليست 4
 const getUserOrders = async (req, res) => {
     const userId = req.params.id; // Récupération de l'ID de l'utilisateur depuis l'URL
 
@@ -129,11 +117,18 @@ const getUserOrders = async (req, res) => {
             return res.status(400).json({ message: "L'ID de l'utilisateur est invalide" });
         }
 
-        // Récupérer les commandes associées à l'utilisateur (sauf celles avec un statut 4)
+        // Récupération des paramètres de pagination
+        const { page = 1, limit = 10 } = req.query;
+
+        // Récupérer les commandes associées à l'utilisateur (sauf celles avec un statut 4) avec pagination et tri
         const orders = await Order.find({
             orders_usersid: userId,
             orders_status: { $ne: 4 }
-        }).populate('orders_address'); // Jointure avec l'adresse de la commande
+        })
+        .populate('orders_address') // Jointure avec l'adresse de la commande
+        .sort({ createdAt: -1 }) // Tri décroissant par date de création
+        .skip((page - 1) * limit) // Sauter les résultats précédents pour la pagination
+        .limit(Number(limit)); // Limiter le nombre de résultats
 
         // Vérifier s'il y a des commandes disponibles
         if (orders.length === 0) {
@@ -141,7 +136,13 @@ const getUserOrders = async (req, res) => {
         }
 
         // Réponse réussie avec les commandes
-        res.status(200).json(orders);
+        res.status(200).json({
+            message: "Commandes récupérées avec succès",
+            orders,
+            currentPage: page,
+            totalOrders: await Order.countDocuments({ orders_usersid: userId, orders_status: { $ne: 4 } }), // Total des commandes pour la pagination
+            totalPages: Math.ceil(await Order.countDocuments({ orders_usersid: userId, orders_status: { $ne: 4 } }) / limit) // Calcul des pages totales
+        });
 
     } catch (error) {
         // Gestion des erreurs inattendues
@@ -150,13 +151,9 @@ const getUserOrders = async (req, res) => {
     }
 };
 
-
-
-// استرجاع تفاصيل الطلب باستخدام cart_orders
 const getOrderDetails = async (req, res) => {
     try {
         const orderId = req.params.id;
-        console.log('orderId reçu:', orderId);
 
         // تحقق من صلاحية ObjectId
         if (!mongoose.Types.ObjectId.isValid(orderId)) {
@@ -164,8 +161,7 @@ const getOrderDetails = async (req, res) => {
         }
 
         // استعلام للتحقق من وجود السجل في Cart
-        const testCart = await Cart.findOne({ cart_orders: orderId });
-        console.log('Test Cart:', testCart);
+        const testCart = await Cart.findOne({ cart_orders: new mongoose.Types.ObjectId(orderId) });
 
         if (!testCart) {
             return res.status(404).json({ message: 'لم يتم العثور على تفاصيل الطلب' });
@@ -173,7 +169,7 @@ const getOrderDetails = async (req, res) => {
 
         // استعلام التجميع (Aggregation)
         const cartItems = await Cart.aggregate([
-            { $match: { cart_orders: mongoose.Types.ObjectId(orderId) } },
+            { $match: { cart_orders: new mongoose.Types.ObjectId(orderId) } },
             {
                 $lookup: {
                     from: 'products',
@@ -183,6 +179,15 @@ const getOrderDetails = async (req, res) => {
                 }
             },
             { $unwind: '$product' },
+            {
+                $project: {
+                    _id: 1,
+                    cart_usersid: 1,
+                    cart_productsid: 1,
+                    cart_orders: 1,
+                    product: 1 // تضمين جميع تفاصيل المنتج
+                }
+            },
             {
                 $group: {
                     _id: null,
@@ -200,14 +205,20 @@ const getOrderDetails = async (req, res) => {
                         }
                     },
                     countitems: { $sum: 1 },
-                    items: { $push: '$product' }
+                    items: { $push: '$product' },
+                    cartInfo: {
+                        $first: {
+                            _id: '$_id',
+                            cart_usersid: '$cart_usersid',
+                            cart_productsid: '$cart_productsid',
+                            cart_orders: '$cart_orders'
+                        }
+                    }
                 }
             }
         ]);
 
-        console.log('cartItems:', cartItems);
-
-        if (!cartItems.length) {
+        if (cartItems.length === 0) {
             return res.status(404).json({ message: 'لم يتم العثور على تفاصيل الطلب' });
         }
 
@@ -217,6 +228,9 @@ const getOrderDetails = async (req, res) => {
         res.status(500).json({ message: 'خطأ في استرجاع تفاصيل الطلب', error: error.message });
     }
 };
+
+
+
 
 
 

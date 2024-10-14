@@ -2,16 +2,27 @@ const mongoose = require('mongoose');
 const Favorite = require('../models/favorite'); // مسار نموذج المفضلات
 const Product = require('../models/product');   // مسار نموذج المنتجات
 const User = require('../models/user'); 
+const { ObjectId } = mongoose.Types; // Assurez-vous que cela soit bien importé
 
 const getMyFavorites = async (req, res) => {
     try {
+        const { userId } = req.params; // Récupérer l'ID de l'utilisateur depuis les paramètres de la requête
+
+        // Vérifier si userId est un ID valide
+        if (!mongoose.isValidObjectId(userId)) {
+            return res.status(400).json({ message: "ID utilisateur invalide." });
+        }
+
         const favorites = await Favorite.aggregate([
+            {
+                $match: { favorite_usersid: new ObjectId(userId) } // Utiliser new ObjectId
+            },
             {
                 $lookup: {
                     from: 'products', // Nom de la collection des produits
-                    localField: 'favorite_productsid', // Le champ dans la collection des favoris qui contient l'ID du produit
-                    foreignField: '_id', // Le champ dans la collection des produits qui contient l'ID unique
-                    as: 'productInfo' // Les données du produit seront stockées sous ce nom
+                    localField: 'favorite_productsid', // Champ dans la collection des favoris
+                    foreignField: '_id', // Champ dans la collection des produits
+                    as: 'productInfo' // Nom sous lequel stocker les informations des produits
                 }
             },
             {
@@ -19,20 +30,20 @@ const getMyFavorites = async (req, res) => {
             },
             {
                 $project: {
-                    _id: 1,  // Afficher l'ID du favori
-                    favorite_usersid: 1,  // Afficher l'ID de l'utilisateur
-                    favorite_productsid: 1,  // Afficher l'ID du produit
-                    'productInfo.products_name': 1,  // Afficher le nom du produit
-                    'productInfo.products_name_ar': 1,  // Afficher le nom en arabe du produit
-                    'productInfo.products_desc': 1,  // Afficher la description du produit
-                    'productInfo.products_desc_ar': 1,  // Afficher la description en arabe du produit
-                    'productInfo.products_image': 1,  // Afficher l'image du produit
-                    'productInfo.products_price': 1,  // Afficher le prix du produit
-                    'productInfo.products_discount': 1,  // Afficher la remise du produit
-                    'productInfo.products_count': 1,  // Afficher le stock disponible du produit
-                    'productInfo.products_active': 1,  // Afficher si le produit est actif
-                    'productInfo.products_date': 1,  // Afficher la date d'ajout du produit
-                    'productInfo.products_cat': 1  // Afficher la catégorie du produit
+                    _id: 1,
+                    favorite_usersid: 1,
+                    favorite_productsid: 1,
+                    'productInfo.products_name': 1,
+                    'productInfo.products_name_ar': 1,
+                    'productInfo.products_desc': 1,
+                    'productInfo.products_desc_ar': 1,
+                    'productInfo.products_image': 1,
+                    'productInfo.products_price': 1,
+                    'productInfo.products_discount': 1,
+                    'productInfo.products_count': 1,
+                    'productInfo.products_active': 1,
+                    'productInfo.products_date': 1,
+                    'productInfo.products_cat': 1
                 }
             }
         ]);
@@ -47,8 +58,6 @@ const getMyFavorites = async (req, res) => {
         res.status(500).json({ message: "Erreur lors de la récupération des favoris." });
     }
 };
-
-
 
 
 const toggleFavorite = async (req, res) => {
@@ -101,9 +110,6 @@ const toggleFavorite = async (req, res) => {
     }
 };
 
-
-
-
 const removeFavorite = async (req, res) => {
     try {
         const { usersid, productsid } = req.body; 
@@ -136,19 +142,35 @@ const removeFavorite = async (req, res) => {
     }
 };
 
+const deleteFavoriteById = async (req, res) => {
+    try {
+        // استرجاع المعرف من عنوان URL
+        const id = req.params.id;
 
+        // التحقق من صحة ObjectId
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ message: 'معرّف غير صالح' });
+        }
 
+        // حذف العنصر من قاعدة البيانات
+        const result = await Favorite.deleteOne({ _id: id });
 
+        // التحقق مما إذا تم الحذف بنجاح
+        if (result.deletedCount === 0) {
+            return res.status(404).json({ message: 'المفضل غير موجود' });
+        }
 
-
-
-
-
-
+        res.status(200).json({ message: 'تم حذف المفضل بنجاح' });
+    } catch (error) {
+        console.error('خطأ في حذف المفضل:', error);
+        res.status(500).json({ message: 'خطأ في الخادم' });
+    }
+};
 
 module.exports = {
     getMyFavorites,
     removeFavorite,
-    toggleFavorite 
+    toggleFavorite ,
+    deleteFavoriteById
     
 };
