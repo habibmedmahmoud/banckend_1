@@ -74,40 +74,6 @@ const createOrder = async (req, res) => {
 };
 
 
-
-const getAllOrders = async (req, res) => {
-    try {
-        const { page = 1, limit = 10 } = req.query; // Paramètres de pagination
-
-        // Recherche des commandes avec pagination et tri par date de création
-        const orders = await Order.find()
-            .sort({ createdAt: -1 }) // Tri décroissant par date de création
-            .skip((page - 1) * limit) // Sauter les résultats précédents pour la pagination
-            .limit(Number(limit)); // Limiter le nombre de résultats
-
-        // Vérification de la longueur des commandes trouvées
-        if (orders.length > 0) {
-            res.status(200).json({
-                message: 'Orders retrieved successfully',
-                orders,
-                currentPage: page,
-                totalOrders: await Order.countDocuments(), // Total des commandes pour la pagination
-                totalPages: Math.ceil(await Order.countDocuments() / limit) // Calcul des pages totales
-            });
-        } else {
-            res.status(404).json({
-                message: 'No orders found'
-            });
-        }
-    } catch (error) {
-        res.status(500).json({
-            message: 'Error retrieving orders',
-            error: error.message
-        });
-    }
-};
-
-
 const getUserOrders = async (req, res) => {
     const userId = req.params.id; // Récupération de l'ID de l'utilisateur depuis l'URL
 
@@ -229,12 +195,95 @@ const getOrderDetails = async (req, res) => {
     }
 };
 
+const getAllOrders = async (req, res) => {
+    try {
+        const { page = 1, limit = 10 } = req.query; // Paramètres de pagination
+
+        // Recherche des commandes avec pagination et tri par date de création
+        const orders = await Order.find()
+            .sort({ createdAt: -1 }) // Tri décroissant par date de création
+            .skip((page - 1) * limit) // Sauter les résultats précédents pour la pagination
+            .limit(Number(limit)); // Limiter le nombre de résultats
+
+        // Vérification de la longueur des commandes trouvées
+        if (orders.length > 0) {
+            res.status(200).json({
+                message: 'Orders retrieved successfully',
+                orders,
+                currentPage: page,
+                totalOrders: await Order.countDocuments(), // Total des commandes pour la pagination
+                totalPages: Math.ceil(await Order.countDocuments() / limit) // Calcul des pages totales
+            });
+        } else {
+            res.status(404).json({
+                message: 'No orders found'
+            });
+        }
+    } catch (error) {
+        res.status(500).json({
+            message: 'Error retrieving orders',
+            error: error.message
+        });
+    }
+};
 
 
+const deleteOrder = async (req, res) => {
+    const orderId = req.params.id;
+  
+    try {
+      const result = await Order.deleteOne({
+        _id: new mongoose.Types.ObjectId(orderId), // Utilisation de 'new'
+        orders_status: 0,
+      });
+  
+      if (result.deletedCount === 0) {
+        return res.status(404).json({ message: 'Aucune commande trouvée ou le statut n\'est pas égal à 0.' });
+      }
+  
+      return res.status(200).json({ message: 'Commande supprimée avec succès.' });
+    } catch (error) {
+      console.error('Erreur lors de la suppression de la commande :', error);
+      return res.status(500).json({ message: 'Erreur interne lors de la suppression.' });
+    }
+  };
 
+// دالة للحصول على الطلبات في حالة الأرشفة
+const getArchivedOrders = async (req, res) => {
+    const userId = req.params.id; // استرجاع ID المستخدم من المعلمات
 
+    try {
+        // التحقق من أن ID المستخدم هو ObjectId صالح
+        if (!userId.match(/^[0-9a-fA-F]{24}$/)) {
+            return res.status(400).json({ message: "L'ID de l'utilisateur est invalide" });
+        }
 
+        // استرجاع الطلبات المرتبطة بالمستخدم التي لها حالة 4
+        const archivedOrders = await Order.find({
+            orders_usersid: userId,
+            orders_status: 4 // هنا نحصل على الطلبات التي لها حالة 4
+        })
+        .populate('orders_address') // إذا كان لديك علاقة مع عنوان الطلب
+        .sort({ createdAt: -1 }); // ترتيب النتائج حسب تاريخ الإنشاء
+
+        // التحقق مما إذا كانت هناك طلبات مؤرشفة
+        if (archivedOrders.length === 0) {
+            return res.status(404).json({ message: "Aucune commande archivée trouvée pour cet utilisateur" });
+        }
+
+        // استجابة ناجحة مع الطلبات المؤرشفة
+        res.status(200).json({
+            message: "Commandes archivées récupérées avec succès",
+            archivedOrders
+        });
+
+    } catch (error) {
+        // معالجة الأخطاء
+        console.error("Erreur lors de la récupération des commandes archivées :", error);
+        res.status(500).json({ message: "Une erreur est survenue lors de la récupération des commandes archivées", error });
+    }
+};
 
 
 // تصدير وظيفة createOrder
-module.exports = { createOrder   , getAllOrders,getUserOrders,getOrderDetails };
+module.exports = { createOrder   , getAllOrders,getUserOrders,getOrderDetails , deleteOrder , getArchivedOrders };

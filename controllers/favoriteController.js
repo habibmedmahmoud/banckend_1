@@ -6,44 +6,44 @@ const { ObjectId } = mongoose.Types; // Assurez-vous que cela soit bien importé
 
 const getMyFavorites = async (req, res) => {
     try {
-        const { userId } = req.params; // Récupérer l'ID de l'utilisateur depuis les paramètres de la requête
+        const { userId } = req.params;
 
-        // Vérifier si userId est un ID valide
+        // التحقق من صحة userId
         if (!mongoose.isValidObjectId(userId)) {
             return res.status(400).json({ message: "ID utilisateur invalide." });
         }
 
         const favorites = await Favorite.aggregate([
             {
-                $match: { favorite_usersid: new ObjectId(userId) } // Utiliser new ObjectId
+                $match: { favorite_usersid: new ObjectId(userId) }
             },
             {
                 $lookup: {
-                    from: 'products', // Nom de la collection des produits
-                    localField: 'favorite_productsid', // Champ dans la collection des favoris
-                    foreignField: '_id', // Champ dans la collection des produits
-                    as: 'productInfo' // Nom sous lequel stocker les informations des produits
+                    from: 'products',
+                    localField: 'favorite_productsid',
+                    foreignField: '_id',
+                    as: 'product'
                 }
             },
             {
-                $unwind: { path: '$productInfo', preserveNullAndEmptyArrays: true } // Applatir les données du produit
+                $unwind: { path: '$product', preserveNullAndEmptyArrays: true }
             },
             {
                 $project: {
                     _id: 1,
                     favorite_usersid: 1,
                     favorite_productsid: 1,
-                    'productInfo.products_name': 1,
-                    'productInfo.products_name_ar': 1,
-                    'productInfo.products_desc': 1,
-                    'productInfo.products_desc_ar': 1,
-                    'productInfo.products_image': 1,
-                    'productInfo.products_price': 1,
-                    'productInfo.products_discount': 1,
-                    'productInfo.products_count': 1,
-                    'productInfo.products_active': 1,
-                    'productInfo.products_date': 1,
-                    'productInfo.products_cat': 1
+                    'product._id': 1,
+                    'product.products_name': 1,
+                    'product.products_name_ar': 1,
+                    'product.products_desc': 1,
+                    'product.products_desc_ar': 1,
+                    'product.products_image': 1,
+                    'product.products_price': 1,
+                    'product.products_discount': 1,
+                    'product.products_count': 1,
+                    'product.products_active': 1,
+                    'product.products_cat': 1
                 }
             }
         ]);
@@ -52,12 +52,37 @@ const getMyFavorites = async (req, res) => {
             return res.status(404).json({ message: "Aucun favori trouvé." });
         }
 
-        res.json(favorites); // Retourner les données au client
+        // تحويل البيانات إلى الشكل المطلوب
+        const formattedFavorites = favorites.map(fav => ({
+            _id: fav._id,
+            favorite_usersid: fav.favorite_usersid,
+            favorite_productsid: fav.favorite_productsid,
+            product_id: fav.product?._id || null,
+            products_name: fav.product?.products_name || "Non spécifié",
+            products_name_ar: fav.product?.products_name_ar || "غير محدد",
+            products_desc: fav.product?.products_desc || "Non spécifié",
+            products_desc_ar: fav.product?.products_desc_ar || "غير محدد",
+            products_image: fav.product?.products_image || "",
+            products_count: fav.product?.products_count || 0,
+            products_active: fav.product?.products_active || false,
+            products_price: fav.product?.products_price || 0,
+            products_discount: fav.product?.products_discount || 0,
+            products_cat: fav.product?.products_cat || null,
+            user_id: fav.favorite_usersid // إضافة user_id هنا
+        }));
+
+        res.json({
+            status: "success",
+            data: formattedFavorites
+        });
+
     } catch (error) {
-        console.error(error);
+        console.error("Error retrieving favorites:", error);
         res.status(500).json({ message: "Erreur lors de la récupération des favoris." });
     }
 };
+
+
 
 
 const toggleFavorite = async (req, res) => {
