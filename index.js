@@ -18,6 +18,8 @@ const AddressRoutes = require('./routes/address');
 const couponRoutes = require('./routes/couponRoutes');
 const ordersRoutes = require('./routes/orderRoutes');
 const NotificationRoutes = require('./routes/notificationRoute');
+const deliveryRoutes = require('./routes/deliveryRoutes');
+const adminRoutes = require('./routes/adminRoutes'); // Import des routes Admin
 
 
 // Initialiser l'application express
@@ -44,6 +46,9 @@ app.use('/api/address', AddressRoutes);
 app.use('/api/coupon', couponRoutes);
 app.use('/api/orders', ordersRoutes);
 app.use('/api', NotificationRoutes);
+app.use('/api/delivery', deliveryRoutes);
+app.use('/api/admin', adminRoutes);
+
 
 
 app.get('/', (req, res) => {

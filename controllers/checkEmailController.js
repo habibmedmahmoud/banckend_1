@@ -91,19 +91,18 @@ exports.resetPassword = async (req, res) => {
 
 
 
-// Fonction pour renvoyer le code de vérification
 exports.resendVerifyCode = async (req, res) => {
-    const { users_email } = req.body; // Supposons que l'email est envoyé dans le corps de la requête
+    const { users_email } = req.body;
 
-    // Générer un nouveau code de vérification (vous pouvez le modifier selon vos besoins)
-    const newVerifyCode = Math.floor(100000 + Math.random() * 900000); // Générer un code à 6 chiffres
+    // Générer un code de vérification à 5 chiffres
+    const newVerifyCode = Math.floor(10000 + Math.random() * 90000);
 
     try {
         // Mettre à jour le code de vérification de l'utilisateur
         const updatedUser = await User.findOneAndUpdate(
             { users_email: users_email },
             { users_verify_code: newVerifyCode },
-            { new: true } // Retourner l'utilisateur mis à jour
+            { new: true }
         );
 
         if (!updatedUser) {
@@ -119,5 +118,4 @@ exports.resendVerifyCode = async (req, res) => {
         res.status(500).json({ message: 'Erreur serveur' });
     }
 };
-
 

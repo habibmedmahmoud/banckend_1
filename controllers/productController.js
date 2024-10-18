@@ -15,31 +15,44 @@ const searchProducts = async (req, res) => {
   
       // Vérification si un terme de recherche est fourni
       if (!search) {
-        return res.status(400).json({ message: 'Veuillez fournir un terme de recherche' });
+        return res.status(400).json({ 
+          status: "error", 
+          message: 'Veuillez fournir un terme de recherche' 
+        });
       }
   
-      // Recherche dans MongoDB avec les expressions régulières (similaire à LIKE en SQL)
+      // Recherche dans MongoDB avec les expressions régulières
       const products = await Product.find({
         $or: [
-          { products_name: { $regex: search, $options: 'i' } }, // Recherche dans le champ products_name
-          { products_name_ar: { $regex: search, $options: 'i' } } // Recherche dans le champ products_name_ar
+          { products_name: { $regex: search, $options: 'i' } },
+          { products_name_ar: { $regex: search, $options: 'i' } }
         ]
       });
   
       // Si aucun produit n'est trouvé
       if (products.length === 0) {
-        return res.status(404).json({ message: 'Aucun produit trouvé' });
+        return res.status(404).json({ 
+          status: "error", 
+          message: 'Aucun produit trouvé' 
+        });
       }
   
-      // Retourner les produits trouvés
-      res.json(products);
+      // Retourner les produits trouvés avec la structure demandée
+      res.json({
+        status: "success",
+        data: products
+      });
   
     } catch (err) {
       // Gestion des erreurs serveur
-      res.status(500).json({ message: 'Erreur serveur', error: err });
+      res.status(500).json({ 
+        status: "error", 
+        message: 'Erreur serveur', 
+        error: err.message 
+      });
     }
   };
-
+  
 const getProductsByCategory = async (req, res) => {
     const categoryId = req.params.categoryId; // _id الخاص بالفئة
     const userId = req.query.userId; // يمكن أن يكون undefined إذا لم يتم تمريره
@@ -82,10 +95,61 @@ const getProductsByCategory = async (req, res) => {
 };
 
 
+// دالة لجلب المنتجات المخفضة
+async function getDiscountedProducts(req, res) {
+  try {
+      const userId = req.params.userId;
+
+      // التحقق من صلاحية userId
+      if (!mongoose.Types.ObjectId.isValid(userId)) {
+          return res.status(400).json({ status: 'failure', message: 'Invalid user ID' });
+      }
+
+      // جلب المنتجات المفضلة للمستخدم
+      const favoriteProducts = await Favorite.find({ favorite_usersid: userId }).select('favorite_productsid');
+      const favoriteProductIds = favoriteProducts.map(fav => fav.favorite_productsid);
+
+      // جلب المنتجات المخفضة في المفضلة
+      const favoriteDiscountedProducts = await Product.find({
+          _id: { $in: favoriteProductIds },
+          products_discount: { $ne: 0 }
+      }).lean();
+
+      favoriteDiscountedProducts.forEach(product => {
+          product.favorite = true;
+          product.products_price_discount = product.products_price - (product.products_price * product.products_discount / 100);
+      });
+
+      // جلب المنتجات المخفضة غير الموجودة في المفضلة
+      const nonFavoriteDiscountedProducts = await Product.find({
+          _id: { $nin: favoriteProductIds },
+          products_discount: { $ne: 0 }
+      }).lean();
+
+      nonFavoriteDiscountedProducts.forEach(product => {
+          product.favorite = false;
+          product.products_price_discount = product.products_price - (product.products_price * product.products_discount / 100);
+      });
+
+      // دمج النتائج
+      const allProducts = [...favoriteDiscountedProducts, ...nonFavoriteDiscountedProducts];
+
+      // إرجاع البيانات
+      if (allProducts.length > 0) {
+          res.json({ status: 'success', data: allProducts });
+      } else {
+          res.json({ status: 'failure', message: 'No discounted products found' });
+      }
+  } catch (error) {
+      console.error('Error fetching products:', error);
+      res.status(500).json({ status: 'error', message: 'Internal server error' });
+  }
+}
 
 
 module.exports = {
     getProductsByCategory ,
-    searchProducts
+    searchProducts,
+    getDiscountedProducts
    
 };

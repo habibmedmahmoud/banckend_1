@@ -45,6 +45,17 @@ const orderSchema = new mongoose.Schema({
     orders_status: {
         type: Number,
         default: 0
+    } ,
+    // Ajout des nouveaux champs
+     orders_rating: {
+        type: Number,  // Évaluation de la commande
+        min: 1,        // Valeur minimale de l'évaluation
+        max: 5,        // Valeur maximale de l'évaluation
+        default: 0     // Par défaut, aucune évaluation
+    },
+    orders_noterating: {
+        type: String,  // Commentaire sur l'évaluation
+        default: 'none'  // Valeur par défaut
     }
 }, {
     timestamps: true

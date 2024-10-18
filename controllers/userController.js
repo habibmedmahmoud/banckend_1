@@ -53,33 +53,33 @@ exports.signup = async (req, res) => {
     }
 };
 
-// Fonction pour vérifier les informations de connexion de l'utilisateur
+// Fonction de login
 exports.login = async (req, res) => {
 
     // Valider les données de la requête
     const { error } = validateLoginUser(req.body);
     if (error) return res.status(400).json({ message: error.details[0].message });
 
-    const { users_email, users_password } = req.body; // Récupération des données d'authentification
+    const { users_email, users_password } = req.body;
 
     try {
-        // Vérifier si l'utilisateur existe et est approuvé
-        const user = await User.findOne({ users_email, users_approve: 1 });
+        // Vérifier si l'utilisateur existe (sans la condition users_approve)
+        const user = await User.findOne({ users_email });
 
         if (!user) {
-            return res.status(404).json({ message: 'Utilisateur non trouvé ou non approuvé' });
+            return res.status(404).json({ message: 'Utilisateur non trouvé' });
         }
 
-        // Comparer le mot de passe
+        // Comparer le mot de passe avec bcrypt
         const isMatch = await bcrypt.compare(users_password, user.users_password);
 
         if (!isMatch) {
             return res.status(400).json({ message: 'Mot de passe invalide' });
         }
 
-        // Authentification réussie - renvoyer toutes les données de l'utilisateur sauf le mot de passe
-        const userData = user.toObject(); // Convertir l'utilisateur en objet JavaScript simple
-        delete userData.users_password; // Supprimer le mot de passe des données renvoyées
+        // Connexion réussie - renvoyer toutes les données utilisateur sauf le mot de passe
+        const userData = user.toObject(); // Convertir en objet JavaScript simple
+        delete userData.users_password; // Supprimer le mot de passe pour des raisons de sécurité
 
         res.status(200).json({ message: 'Connexion réussie', user: userData });
 

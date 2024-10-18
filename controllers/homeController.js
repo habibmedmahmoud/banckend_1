@@ -1,52 +1,97 @@
 
 const Category = require('../models/category');
 const Product = require('../models/product');
+const Cart = require('../models/cart');
+const Setting = require('../models/settings');
 
 
-// دالة لجلب جميع الفئات والمنتجات مع العلاقات بينها
+// دالة لجلب الإعدادات، الفئات، والمنتجات الأكثر مبيعًا
 async function getAllDataHome(req, res) {
     try {
-        // جلب جميع الفئات
+        // 1. جلب الإعدادات
+        const settings = await Setting.find();
+
+        // 2. جلب الفئات
         const categories = await Category.find();
 
-        // جلب المنتجات التي تحتوي على تخفيض (products_discount مختلف عن 0)
-        const products = await Product.find({ products_discount: { $ne: 0 } }).populate('products_cat');
+        // 3. جلب المنتجات الأكثر مبيعًا باستخدام Aggregate
+        const topSellingProducts = await Cart.aggregate([
+            { $match: { cart_orders: { $ne: 0 } } }, // الطلبات غير الصفرية
+            {
+                $lookup: {
+                    from: 'products', // اسم مجموعة المنتجات
+                    localField: 'cart_productid', // الحقل في Cart
+                    foreignField: '_id', // الحقل في Products
+                    as: 'productDetails'
+                }
+            },
+            { $unwind: '$productDetails' }, // فك المنتج من المصفوفة
+            {
+                $group: {
+                    _id: '$cart_productid',
+                    countitems: { $sum: 1 }, // حساب عدد الطلبات
+                    product: { $first: '$productDetails' }
+                }
+            },
+            {
+                $project: {
+                    _id: 1,
+                    countitems: 1,
+                    'product.products_name': 1,
+                    'product.products_name_ar': 1,
+                    'product.products_desc': 1,
+                    'product.products_desc_ar': 1,
+                    'product.products_image': 1,
+                    'product.products_count': 1,
+                    'product.products_active': 1,
+                    'product.products_price': 1,
+                    'product.products_discount': 1,
+                    'product.favorite': 1,
+                    productpricediscount: {
+                        $subtract: [
+                            '$product.products_price',
+                            {
+                                $multiply: [
+                                    '$product.products_price',
+                                    { $divide: ['$product.products_discount', 100] }
+                                ]
+                            }
+                        ]
+                    }
+                }
+            },
+            { $sort: { countitems: -1 } } // ترتيب تنازلي
+        ]);
 
-        // إعادة الاستجابة مع البيانات
+        // 4. تنسيق البيانات داخل مصفوفة بالشكل المطلوب
+        const data = [
+            {
+                settings: settings.map(setting => ({
+                    titleHome: setting.titleHome,
+                    bodyHome: setting.bodyHome,
+                    deliveryTime: setting.deliveryTime
+                }))
+            },
+            ...categories.map(category => ({ category })),
+            { topSellingProducts }
+        ];
+
+        // 5. إرسال الاستجابة بشكل JSON
         return res.status(200).json({
             status: 'success',
-            categories: categories,
-            products: products.map(product => {
-                const category = product.products_cat || {}; // Valeur par défaut pour éviter null
-                return {
-                    _id: product._id, // ID المنتج
-                    products_name: product.products_name, // اسم المنتج
-                    products_desc: product.products_desc,
-
-                    products_name_ar: product.products_name_ar,
-                    products_desc_ar: product.products_desc_ar,
-                     // وصف المنتج
-                    products_image: product.products_image, // صورة المنتج
-                    products_count: product.products_count, // عدد المنتجات المتاحة
-                    products_active: product.products_active, // حالة المنتج (مفعل/غير مفعل)
-                    products_price: product.products_price, // سعر المنتج
-                    products_discount: product.products_discount,
-                     // نسبة الخصم
-                    products_cat: product.products_cat,
-                    categories_id: category._id || null, // ID الفئة
-                    categories_name: category.categories_name || 'غير محدد', // اسم الفئة أو قيمة افتراضية
-                    categories_name_ar: category.categories_name_ar || 'غير محدد', // اسم الفئة بالعربية أو قيمة افتراضية
-                    categories_image: category.categories_image || null, // صورة الفئة أو قيمة افتراضية
-                };
-            })
+            data
         });
+
     } catch (error) {
+        // 6. معالجة الأخطاء
         return res.status(500).json({
             status: 'error',
             message: error.message
         });
     }
 }
+
+
 
 
 module.exports = { getAllDataHome };

@@ -16,12 +16,19 @@ const createOrder = async (req, res) => {
             pricedelivery, 
             ordersprice, 
             couponid, 
-            paymentmethod 
+            paymentmethod, 
+            orders_rating,     
+            orders_noterating  
         } = req.body;
 
-        // تحقق من وجود البيانات المدخلة
+        // Vérification des données saisies
         if (!usersid || !addressid || !ordersprice || !paymentmethod) {
-            return res.status(400).json({ message: 'الرجاء تقديم جميع البيانات المطلوبة' });
+            return res.status(400).json({ message: 'Veuillez fournir toutes les informations requises.' });
+        }
+
+        // Vérification de la validité du rating
+        if (orders_rating && (orders_rating < 1 || orders_rating > 5)) {
+            return res.status(400).json({ message: 'Le rating doit être compris entre 1 et 5.' });
         }
 
         let deliveryPrice = orderstype === 1 ? 0 : pricedelivery;
@@ -41,11 +48,10 @@ const createOrder = async (req, res) => {
                 coupon.coupon_count -= 1;  
                 await coupon.save();  
             } else {
-                return res.status(400).json({ message: 'كوبون غير صالح أو انتهت صلاحيته' });
+                return res.status(400).json({ message: 'Coupon invalide ou expiré.' });
             }
         }
 
-        // Créer un nouvel ordre
         const newOrder = new Order({
             orders_usersid: new mongoose.Types.ObjectId(usersid),
             orders_address: new mongoose.Types.ObjectId(addressid),
@@ -54,24 +60,25 @@ const createOrder = async (req, res) => {
             orders_price: ordersprice,
             orders_coupon: couponid ? new mongoose.Types.ObjectId(couponid) : null,
             orders_payment: paymentmethod,
-            orders_totalprice: totalprice
+            orders_totalprice: totalprice,
+            orders_rating: orders_rating || 0,
+            orders_noterating: orders_noterating || 'Aucun commentaire'
         });
 
-        // Enregistrer la commande dans la base de données
         await newOrder.save();
 
-        // Mettre à jour le panier avec l'ID de la nouvelle commande
         await Cart.updateMany(
-            { cart_usersid: usersid, cart_orders: null }, // Met à jour seulement ceux qui n'ont pas de commande
-            { $set: { cart_orders: newOrder._id } } // Utilise l'ID de la nouvelle commande
+            { cart_usersid: usersid, cart_orders: null },
+            { $set: { cart_orders: newOrder._id } }
         );
 
-        res.status(201).json({ message: 'Order created successfully', order: newOrder });
+        res.status(201).json({ message: 'Commande créée avec succès.', order: newOrder });
 
     } catch (error) {
-        res.status(400).json({ message: 'Order creation failed', error: error.message });
+        res.status(400).json({ message: 'Échec de la création de la commande.', error: error.message });
     }
 };
+
 
 
 const getUserOrders = async (req, res) => {
@@ -258,32 +265,78 @@ const getArchivedOrders = async (req, res) => {
             return res.status(400).json({ message: "L'ID de l'utilisateur est invalide" });
         }
 
-        // استرجاع الطلبات المرتبطة بالمستخدم التي لها حالة 4
+        // استرجاع الطلبات المرتبطة بالمستخدم التي لها حالة 4 مع العناوين المرتبطة بها
         const archivedOrders = await Order.find({
             orders_usersid: userId,
-            orders_status: 4 // هنا نحصل على الطلبات التي لها حالة 4
+            orders_status: 4 // الطلبات المؤرشفة
         })
-        .populate('orders_address') // إذا كان لديك علاقة مع عنوان الطلب
+        .populate({
+            path: 'orders_address',  // علاقة الطلب بالعنوان
+            select: 'address_name address_city address_street address_lat address_long',  // الحقول المطلوبة من العنوان
+        })
         .sort({ createdAt: -1 }); // ترتيب النتائج حسب تاريخ الإنشاء
 
-        // التحقق مما إذا كانت هناك طلبات مؤرشفة
+        // التحقق من وجود طلبات مؤرشفة
         if (archivedOrders.length === 0) {
             return res.status(404).json({ message: "Aucune commande archivée trouvée pour cet utilisateur" });
         }
 
-        // استجابة ناجحة مع الطلبات المؤرشفة
+        // استجابة ناجحة مع البيانات
         res.status(200).json({
             message: "Commandes archivées récupérées avec succès",
             archivedOrders
         });
 
     } catch (error) {
-        // معالجة الأخطاء
         console.error("Erreur lors de la récupération des commandes archivées :", error);
-        res.status(500).json({ message: "Une erreur est survenue lors de la récupération des commandes archivées", error });
+        res.status(500).json({ 
+            message: "Une erreur est survenue lors de la récupération des commandes archivées", 
+            error 
+        });
     }
 };
 
 
+
+
+const updateOrder = async (req, res) => {
+    try {
+        const { id, rating, comment } = req.body;
+
+        if (!id || rating === undefined || comment === undefined) {
+            return res.status(400).json({ message: 'ID, rating et commentaire sont requis.' });
+        }
+
+        // Vérification de la validité du rating
+        if (rating < 1 || rating > 5) {
+            return res.status(400).json({ message: 'Le rating doit être compris entre 1 et 5.' });
+        }
+
+        const order = await Order.findById(id);
+        if (!order) {
+            return res.status(404).json({ message: 'Commande non trouvée.' });
+        }
+
+        const data = {
+            orders_noterating: comment,
+            orders_rating: rating
+        };
+
+        const result = await Order.updateOne({ _id: id }, { $set: data });
+
+        if (result.nModified > 0) {
+            return res.status(200).json({ message: 'Commande mise à jour avec succès.' });
+        } else {
+            return res.status(404).json({ message: 'Aucune modification apportée à la commande.' });
+        }
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: 'Erreur lors de la mise à jour de la commande.' });
+    }
+};
+
+
+
+
 // تصدير وظيفة createOrder
-module.exports = { createOrder   , getAllOrders,getUserOrders,getOrderDetails , deleteOrder , getArchivedOrders };
+module.exports = { createOrder   , getAllOrders,getUserOrders,getOrderDetails , deleteOrder , getArchivedOrders , updateOrder };

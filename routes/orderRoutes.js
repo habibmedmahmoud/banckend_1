@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 // Importer le contrôleur de commande
-const { createOrder  , getAllOrders  , getUserOrders , getOrderDetails , deleteOrder , getArchivedOrders } = require('../controllers/OrderController');
+const { createOrder  , getAllOrders  , getUserOrders , getOrderDetails , deleteOrder , getArchivedOrders , updateOrder } = require('../controllers/OrderController');
 
 // Route pour insérer une commande
 router.post('/', createOrder);
@@ -24,6 +24,10 @@ router.get('/details/:id', getOrderDetails);
 
 // مسار لاسترجاع الطلبات المؤرشفة
 router.get('/archive/:id', getArchivedOrders);
+
+
+// Route pour mettre à jour une commande
+router.put('/update', updateOrder);
 
 
 
