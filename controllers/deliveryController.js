@@ -106,7 +106,7 @@ exports.verifyCode = async (req, res) => {
         }
 
         // Si le code est correct, mettre à jour les champs appropriés
-        delivery.delivery_verify_code = "0"; // Réinitialiser le code de vérification
+        delivery.delivery_verify_code = verify_code; // Réinitialiser le code de vérification
         delivery.delivery_approve = 1; // Approuver le livreur
 
         // Sauvegarder les modifications

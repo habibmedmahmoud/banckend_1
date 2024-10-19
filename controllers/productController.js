@@ -7,51 +7,26 @@ const { Types } = mongoose; // Importation de Types
 
 
 
-// Fonction pour rechercher les produits
+// Fonction de recherche des produits
 const searchProducts = async (req, res) => {
-    try {
-      // Récupération du terme de recherche depuis la requête
-      const search = (req.query.search || '').trim();
-  
-      // Vérification si un terme de recherche est fourni
-      if (!search) {
-        return res.status(400).json({ 
-          status: "error", 
-          message: 'Veuillez fournir un terme de recherche' 
-        });
-      }
-  
-      // Recherche dans MongoDB avec les expressions régulières
+  try {
+      const search = req.query.search || ''; // Récupérer le terme de recherche
+      const regex = new RegExp(search, 'i'); // Utiliser une expression régulière pour la recherche insensible à la casse
+
       const products = await Product.find({
-        $or: [
-          { products_name: { $regex: search, $options: 'i' } },
-          { products_name_ar: { $regex: search, $options: 'i' } }
-        ]
-      });
-  
-      // Si aucun produit n'est trouvé
-      if (products.length === 0) {
-        return res.status(404).json({ 
-          status: "error", 
-          message: 'Aucun produit trouvé' 
-        });
-      }
-  
-      // Retourner les produits trouvés avec la structure demandée
-      res.json({
-        status: "success",
-        data: products
-      });
-  
-    } catch (err) {
-      // Gestion des erreurs serveur
-      res.status(500).json({ 
-        status: "error", 
-        message: 'Erreur serveur', 
-        error: err.message 
-      });
-    }
-  };
+          $or: [
+              { products_name: regex },
+              { products_name_ar: regex }
+          ]
+      }).populate('products_cat'); // Utiliser populate si vous voulez inclure les détails de la catégorie
+
+      res.status(200).json(products); // Retourner les résultats trouvés
+  } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: 'Erreur lors de la recherche des produits' });
+  }
+};
+
   
 const getProductsByCategory = async (req, res) => {
     const categoryId = req.params.categoryId; // _id الخاص بالفئة

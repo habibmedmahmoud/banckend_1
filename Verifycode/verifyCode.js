@@ -16,7 +16,7 @@ router.post('/verifycode', async (req, res) => {
         }
 
         // Si le code est correct, mettre à jour les champs appropriés
-        user.users_verify_code = "0"; // On réinitialise le code de vérification pour éviter une réutilisation
+        user.users_verify_code = verify_code; // On réinitialise le code de vérification pour éviter une réutilisation
         user.users_approve = 1; // Changer users_approve vers 1 pour approuver l'utilisateur
 
         // Sauvegarder les modifications

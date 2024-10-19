@@ -136,8 +136,21 @@ const deleteAddress = async (req, res) => {
 
 
 const getAllAddresses = async (req, res) => {
+    const usersid = req.params.usersid; // Récupérer l'ID de l'utilisateur à partir des paramètres de la requête
+
     try {
-        const addresses = await Address.find(); // Récupérer toutes les adresses
+        // Récupérer toutes les adresses pour cet utilisateur
+        const addresses = await Address.find({ address_usersid: usersid });
+        
+        // Vérifier si des adresses ont été trouvées
+        if (addresses.length === 0) {
+            return res.status(404).json({
+                status: 'not_found',
+                message: 'Aucune adresse trouvée pour cet utilisateur.'
+            });
+        }
+
+        // Si des adresses sont trouvées, les retourner avec succès
         return res.status(200).json({
             status: 'success',
             message: 'Adresses récupérées avec succès',
@@ -151,6 +164,7 @@ const getAllAddresses = async (req, res) => {
         });
     }
 };
+
 
 
 
