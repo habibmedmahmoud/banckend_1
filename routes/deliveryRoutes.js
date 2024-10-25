@@ -18,4 +18,8 @@ router.post('/checkverifycode', deliveryController.checkVerifyCode);
 router.post('/reset-password', deliveryController.resetPassword);
 router.post('/resend-verify-code', deliveryController.resendVerifyCode);
 
+
+// Route GET avec un paramètre deliveryId
+
+
 module.exports = router;

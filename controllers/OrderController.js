@@ -5,79 +5,79 @@ const Coupon = require('../models/coupon'); // نموذج الكوبون
 const Cart = require('../models/cart');
 const Address = require('../models/address'); // Modèle d'adresse
 
-
-
 const createOrder = async (req, res) => {
     try {
-        const { 
-            usersid, 
-            addressid, 
-            orderstype, 
-            pricedelivery, 
-            ordersprice, 
-            couponid, 
-            paymentmethod, 
-            orders_rating,     
-            orders_noterating  
-        } = req.body;
-
-        // Vérification des données saisies
-        if (!usersid || !addressid || !ordersprice || !paymentmethod) {
-            return res.status(400).json({ message: 'Veuillez fournir toutes les informations requises.' });
-        }
-
-        // Vérification de la validité du rating
-        if (orders_rating && (orders_rating < 1 || orders_rating > 5)) {
-            return res.status(400).json({ message: 'Le rating doit être compris entre 1 et 5.' });
-        }
-
-        let deliveryPrice = orderstype === 1 ? 0 : pricedelivery;
-        let totalprice = ordersprice + deliveryPrice;
-
-        // Vérification de la validité du coupon
-        if (couponid) {
-            const now = new Date();
-            const coupon = await Coupon.findOne({
-                _id: new mongoose.Types.ObjectId(couponid),
-                coupon_expiredate: { $gt: now },
-                coupon_count: { $gt: 0 }
-            });
-
-            if (coupon) {
-                totalprice -= (ordersprice * coupon.coupon_discount) / 100;
-                coupon.coupon_count -= 1;  
-                await coupon.save();  
-            } else {
-                return res.status(400).json({ message: 'Coupon invalide ou expiré.' });
-            }
-        }
-
-        const newOrder = new Order({
-            orders_usersid: new mongoose.Types.ObjectId(usersid),
-            orders_address: new mongoose.Types.ObjectId(addressid),
-            orders_type: orderstype,
-            orders_pricedelivery: deliveryPrice,
-            orders_price: ordersprice,
-            orders_coupon: couponid ? new mongoose.Types.ObjectId(couponid) : null,
-            orders_payment: paymentmethod,
-            orders_totalprice: totalprice,
-            orders_rating: orders_rating || 0,
-            orders_noterating: orders_noterating || 'Aucun commentaire'
+      const {
+        orders_usersid,
+        orders_address = null, // عنوان اختياري
+        orders_type,
+        orders_pricedelivery = 0,
+        orders_price,
+        couponid = null, // يمكن أن يكون فارغًا
+        orders_payment
+      } = req.body;
+  
+      // حساب السعر الإجمالي (إضافة رسوم التوصيل إذا كان الطلب يتطلب ذلك)
+      let totalprice = orders_price;
+      if (orders_type === 0) {
+        totalprice += orders_pricedelivery;
+      }
+  
+      // التحقق من الكوبون إذا كان موجودًا
+      let discount = 0;
+      let appliedCoupon = null;
+  
+      if (couponid) {
+        const now = new Date();
+        const coupon = await Coupon.findOne({
+          _id: couponid,
+          coupon_expiredate: { $gt: now },
+          coupon_count: { $gt: 0 }
         });
-
-        await newOrder.save();
-
-        await Cart.updateMany(
-            { cart_usersid: usersid, cart_orders: null },
-            { $set: { cart_orders: newOrder._id } }
-        );
-
-        res.status(201).json({ message: 'Commande créée avec succès.', order: newOrder });
-
+  
+        if (coupon) {
+          discount = (orders_price * coupon.coupon_discount) / 100;
+          totalprice -= discount;
+  
+          // تحديث الكمية المتبقية من الكوبون
+          coupon.coupon_count -= 1;
+          await coupon.save();
+  
+          appliedCoupon = coupon._id; // حفظ معرف الكوبون في الطلب
+        }
+      }
+  
+      // إنشاء الطلب
+      const newOrder = new Order({
+        orders_usersid,
+        orders_address,
+        orders_type,
+        orders_pricedelivery: orders_type === 0 ? orders_pricedelivery : 0,
+        orders_price,
+        orders_totalprice: totalprice,
+        orders_payment,
+        orders_coupon: appliedCoupon // تعيين الكوبون إذا تم استخدامه
+      });
+  
+      await newOrder.save();
+  
+      // الرد على العميل بنجاح
+      res.status(201).json({
+        status: 'success',
+        message: 'تم إنشاء الطلب بنجاح.',
+        order: newOrder
+      });
+  
     } catch (error) {
-        res.status(400).json({ message: 'Échec de la création de la commande.', error: error.message });
+      console.error('خطأ أثناء إنشاء الطلب:', error);
+      res.status(500).json({
+        status: 'error',
+        message: 'حدث خطأ أثناء إنشاء الطلب.'
+      });
     }
-};
+  };
+  
+  
 
 
 

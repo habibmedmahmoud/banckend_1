@@ -2,6 +2,8 @@ const { Delivery, validateRegisterDelivery, validateLoginDelivery } = require('.
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto'); 
 const  { sendEmail } = require('../Email/testEmail');
+const Order = require('../models/orders');
+const mongoose = require('mongoose');
 
 
 // وظيفة التسجيل
@@ -238,3 +240,4 @@ exports.resendVerifyCode = async (req, res) => {
         res.status(500).json({ message: 'Erreur serveur' });
     }
 };
+// accepted 

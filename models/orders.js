@@ -9,7 +9,7 @@ const orderSchema = new mongoose.Schema({
     orders_address: {
         type: mongoose.Schema.Types.ObjectId,  // Référence à une adresse
         ref: 'Address',  // Jointure avec le modèle Address
-        required: true
+        default: null   // يمكن أن يكون null إذا لم يتم توفيره
     },
     orders_type: {
         type: Number,   // 0 => livraison ; 1 => retrait
@@ -46,17 +46,17 @@ const orderSchema = new mongoose.Schema({
         type: Number,
         default: 0
     } ,
-    // Ajout des nouveaux champs
-     orders_rating: {
-        type: Number,  // Évaluation de la commande
-        min: 1,        // Valeur minimale de l'évaluation
-        max: 5,        // Valeur maximale de l'évaluation
-        default: 0     // Par défaut, aucune évaluation
+    orders_rating: {
+        type: Number,  // تقييم الطلب
+        min: 0,        // السماح بالقيمة 0
+        max: 5,        // الحد الأقصى: 5
+        default: 0     // القيمة الافتراضية: 0
     },
     orders_noterating: {
         type: String,  // Commentaire sur l'évaluation
         default: 'none'  // Valeur par défaut
-    }
+    },
+    
 }, {
     timestamps: true
 });

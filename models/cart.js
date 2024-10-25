@@ -15,7 +15,7 @@ const cartSchema = new mongoose.Schema({
     cart_orders: {
         type: mongoose.Schema.Types.ObjectId, // Utiliser ObjectId pour référencer une commande
         ref: 'Order', // Référence au modèle Order
-        default: null // Aucune commande par défaut
+        default: null // القيمة الافتراضية null
     }
     
 }, { timestamps: true }); // Active createdAt et updatedAt
