@@ -1,26 +1,25 @@
 const mongoose = require('mongoose');
 
-// Définir le schéma du panier
+// تعريف نموذج السلة
 const cartSchema = new mongoose.Schema({
     cart_usersid: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'User', // Référence au modèle User
+        ref: 'User', // إشارة إلى نموذج المستخدم
         required: true
     },
     cart_productsid: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Product', // Référence au modèle Product
+        ref: 'Product', // إشارة إلى نموذج المنتج
         required: true
     },
     cart_orders: {
-        type: mongoose.Schema.Types.ObjectId, // Utiliser ObjectId pour référencer une commande
+        type: mongoose.Schema.Types.ObjectId, // Changez ceci de Number à ObjectId
         ref: 'Order', // Référence au modèle Order
-        default: null // القيمة الافتراضية null
-    }
-    
-}, { timestamps: true }); // Active createdAt et updatedAt
+        default: null
+    },
+}, { timestamps: true }); // تفعيل createdAt و updatedAt
 
-// Créer le modèle de panier
+// إنشاء نموذج السلة
 const Cart = mongoose.model('Cart', cartSchema);
 
 module.exports = Cart;

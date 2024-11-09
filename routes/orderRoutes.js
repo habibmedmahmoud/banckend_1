@@ -2,32 +2,35 @@ const express = require('express');
 const router = express.Router();
 
 // Importer le contrôleur de commande
-const { createOrder  , getAllOrders  , getUserOrders , getOrderDetails , deleteOrder , getArchivedOrders , updateOrder } = require('../controllers/OrderController');
+const { createOrder , getUserOrdersWithStatus , getOrderDetails , deleteOrder ,  getUserOrders  , updateOrderRating} = require('../controllers/OrderController');
+// cette partie pour de utilisateur pour de orders 
 
 // Route pour insérer une commande
 router.post('/', createOrder);
-// مسار لاسترجاع جميع الطلبات لمستخدم معين
-router.get('/', getAllOrders);
-
-// router.get('/:userId', getordersview); // pending
-
-// استرجاع جميع الطلبات الخاصة بمستخدم معين
-router.get('/:id', getUserOrders);
-
-// مسار حذف الطلب
-router.delete('/:id',deleteOrder );
 
 
-// استرجاع تفاصيل طلب معين
+
+// Route pour récupérer les commandes d'un utilisateur ayant un orders_status de 4
+// archive 
+router.get('/:id', getUserOrdersWithStatus);
+
+// Route pour supprimer une commande
+
+router.delete('/deleteOrder',deleteOrder );
+
+// Route pour obtenir les détails de la commande
+
 router.get('/details/:id', getOrderDetails);
 
 
-// مسار لاسترجاع الطلبات المؤرشفة
-router.get('/archive/:id', getArchivedOrders);
+// مسار لاسترداد الطلبات بمعرف المستخدم
+router.get('/user/:id/orders', getUserOrders);
+
+// Route PUT pour mettre à jour l'évaluation d'une commande
+
+router.put('/rating/:id' , updateOrderRating);
 
 
-// Route pour mettre à jour une commande
-router.put('/update', updateOrder);
 
 
 

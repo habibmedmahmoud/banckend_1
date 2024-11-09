@@ -3,6 +3,8 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
+
+
 // Fonction pour ajouter une catégorie
 exports.addCategory = async (req, res) => {
     try {
@@ -38,7 +40,11 @@ exports.deleteCategory = async (req, res) => {
 
     try {
         const oldImagePath = path.join(__dirname, '../uploads/categories', imagename);
-        deleteFile(oldImagePath); // Supprime le fichier d'image
+        
+        // Supprime le fichier d'image
+        if (fs.existsSync(oldImagePath)) {
+            fs.unlinkSync(oldImagePath); // Utilise unlinkSync pour supprimer de manière synchrone
+        }
 
         const result = await Category.findByIdAndDelete(id);
 
@@ -51,6 +57,8 @@ exports.deleteCategory = async (req, res) => {
         res.status(500).json({ message: 'Erreur lors de la suppression de la catégorie', error: error.message });
     }
 };
+
+
 
 // Fonction pour éditer une catégorie
 exports.editCategory = async (req, res) => {

@@ -1,4 +1,5 @@
 const Product = require('../../../models/product');
+const Category = require('../../../models/category'); // Assurez-vous que le chemin est correct
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs'); // Gestion des fichiers

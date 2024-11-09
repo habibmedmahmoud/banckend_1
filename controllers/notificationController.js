@@ -1,64 +1,50 @@
 const Notification = require('../models/notification');
-const { User } = require('../models/user'); // Assurez-vous d'utiliser l'importation correcte
+const  { sendNotificationToTopic } = require('../notificationService');
 
-const axios = require('axios');
 
-// Fonction pour envoyer une notification via FCM
-async function sendGCM(title, message, topic, pageid, pagename) {
-    const url = 'https://fcm.googleapis.com/fcm/send';
-    const fields = {
-        to: '/topics/' + topic,
-        priority: 'high',
-        content_available: true,
-        notification: {
-            body: message,
-            title: title,
-            click_action: "FLUTTER_NOTIFICATION_CLICK",
-            sound: "default"
-        },
-        data: {
-            pageid: pageid,
-            pagename: pagename
-        }
-    };
+// دالة لإدخال الإشعار وإرساله إلى FCM
+async function insertNotify({ title, body, userid, topic, pageid, pagename }) {
+  try {
+      // إدخال الإشعار في قاعدة البيانات
+      const newNotification = new Notification({
+          notification_title: title,
+          notification_body: body,
+          notification_userid: userid,
+      });
+      
+      const result = await newNotification.save();
 
-    const headers = {
-        'Authorization': 'key=ezt42FWyQg2uRF0UdSquXh:APA91bFGl6l9pdkCr4Y3jp4-Oe0D-1Y1LS5oLqaICzDMUzPRA8KWoQAKLUg6_Prah3GxLKA_fv24cdvDlXZMn85vYXyQPe5kO72mv6huMQATPU1XGAYkH6B-BpzjgWaqrj3THAREazcH', // Remplacez par votre clé de serveur
-        'Content-Type': 'application/json'
-    };
+      // إرسال الإشعار إلى FCM
+      await sendNotificationToTopic(title, body, topic, pageid, pagename);
 
-    try {
-        const response = await axios.post(url, fields, { headers });
-        return response.data;
-    } catch (error) {
-        console.error("Erreur lors de l'envoi de la notification :", error);
-        throw error;
-    }
+      // إرجاع النتيجة في حال الحاجة
+      return { message: 'تم إدخال الإشعار وإرساله بنجاح', notification: result };
+  } catch (error) {
+      // إلقاء الخطأ ليتم التعامل معه في الدالة `approveOrder`
+      throw new Error('حدث خطأ أثناء معالجة الطلب: ' + error.message);
+  }
 }
 
-// Fonction pour insérer une notification
-async function insertNotify(req, res) {
-    const { title, body, userid, topic, pageid, pagename } = req.body;
 
-    try {
-        // Vérifiez si l'utilisateur existe
-        const user = await User.findById(userid);
-        if (!user) {
-            return res.status(404).json({ message: 'Utilisateur non trouvé' });
-        }
+  // دالة لاسترداد جميع الإشعارات بناءً على معرف المستخدم
+const getAllNotifications = async (req, res) => {
+  const userid = req.params.userid;
 
-        const notification = new Notification({
-            notification_title: title,
-            notification_body: body,
-            notification_userid: userid,
-        });
+  try {
+      // استرداد جميع الإشعارات حيث `notification_userid` يطابق `userid`
+      const notifications = await Notification.find({ notification_userid: userid });
 
-        await notification.save();
-        await sendGCM(title, body, topic, pageid, pagename);
-        res.status(200).json({ message: 'Notification insérée avec succès', notification });
-    } catch (error) {
-        res.status(500).json({ message: 'Erreur lors de l\'insertion de la notification', error: error.message });
-    }
-}
+      res.status(200).json(notifications);
+  } catch (error) {
+      res.status(500).json({ message: 'حدث خطأ أثناء استرداد الإشعارات', error: error.message });
+  }
+};
 
-module.exports = { insertNotify };
+
+
+
+  module.exports = {
+    insertNotify,
+    getAllNotifications 
+    
+  };

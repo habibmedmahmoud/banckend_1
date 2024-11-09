@@ -70,56 +70,47 @@ const getProductsByCategory = async (req, res) => {
 };
 
 
-// دالة لجلب المنتجات المخفضة
-async function getDiscountedProducts(req, res) {
-  try {
-      const userId = req.params.userId;
+const getDiscountedProducts = async (req, res) => {
+    try {
+        // جلب جميع المنتجات المفضلة وتحويل IDs إلى ObjectId
+        const favoriteProducts = await Favorite.find().select('favorite_productsid');
+        const favoriteProductIds = favoriteProducts.map(fav =>
+            new mongoose.Types.ObjectId(fav.favorite_productsid) // استخدام 'new'
+        );
 
-      // التحقق من صلاحية userId
-      if (!mongoose.Types.ObjectId.isValid(userId)) {
-          return res.status(400).json({ status: 'failure', message: 'Invalid user ID' });
-      }
+        // جلب المنتجات التي لديها خصم والتحقق من حالة المفضلة
+        const products = await Product.aggregate([
+            {
+                $match: { products_discount: { $ne: 0 } } // المنتجات التي لديها خصم
+            },
+            {
+                $addFields: {
+                    itemspricedisount: {
+                        $subtract: [
+                            "$products_price",
+                            { $multiply: ["$products_price", { $divide: ["$products_discount", 100] }] }
+                        ]
+                    },
+                    favorite: {
+                        $cond: {
+                            if: { $in: ["$_id", favoriteProductIds] },
+                            then: true, // المنتج مفضل
+                            else: false // المنتج غير مفضل
+                        }
+                    }
+                }
+            }
+        ]);
 
-      // جلب المنتجات المفضلة للمستخدم
-      const favoriteProducts = await Favorite.find({ favorite_usersid: userId }).select('favorite_productsid');
-      const favoriteProductIds = favoriteProducts.map(fav => fav.favorite_productsid);
-
-      // جلب المنتجات المخفضة في المفضلة
-      const favoriteDiscountedProducts = await Product.find({
-          _id: { $in: favoriteProductIds },
-          products_discount: { $ne: 0 }
-      }).lean();
-
-      favoriteDiscountedProducts.forEach(product => {
-          product.favorite = true;
-          product.products_price_discount = product.products_price - (product.products_price * product.products_discount / 100);
-      });
-
-      // جلب المنتجات المخفضة غير الموجودة في المفضلة
-      const nonFavoriteDiscountedProducts = await Product.find({
-          _id: { $nin: favoriteProductIds },
-          products_discount: { $ne: 0 }
-      }).lean();
-
-      nonFavoriteDiscountedProducts.forEach(product => {
-          product.favorite = false;
-          product.products_price_discount = product.products_price - (product.products_price * product.products_discount / 100);
-      });
-
-      // دمج النتائج
-      const allProducts = [...favoriteDiscountedProducts, ...nonFavoriteDiscountedProducts];
-
-      // إرجاع البيانات
-      if (allProducts.length > 0) {
-          res.json({ status: 'success', data: allProducts });
-      } else {
-          res.json({ status: 'failure', message: 'No discounted products found' });
-      }
-  } catch (error) {
-      console.error('Error fetching products:', error);
-      res.status(500).json({ status: 'error', message: 'Internal server error' });
-  }
-}
+        if (products.length > 0) {
+            res.json({ status: 'success', data: products });
+        } else {
+            res.json({ status: 'failure', message: 'No discounted products found' });
+        }
+    } catch (error) {
+        res.status(500).json({ status: 'error', message: error.message });
+    }
+};
 
 
 module.exports = {

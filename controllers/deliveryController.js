@@ -4,7 +4,8 @@ const crypto = require('crypto');
 const  { sendEmail } = require('../Email/testEmail');
 const Order = require('../models/orders');
 const mongoose = require('mongoose');
-
+const { sendNotificationToTopic} = require('../notificationService'); // تأكد من تعديل المسار حسب هيكل مشروعك
+const { insertNotify } = require('../controllers/notificationController');
 
 // وظيفة التسجيل
 exports.signup = async (req, res) => {
@@ -240,4 +241,73 @@ exports.resendVerifyCode = async (req, res) => {
         res.status(500).json({ message: 'Erreur serveur' });
     }
 };
+
+
+
+
 // accepted 
+
+// // Controller function to get filtered orders
+// exports.getFilteredOrders = async (req, res) => {
+//     try {
+//         const deliveryId = req.params.id; // Get the delivery ID from the request parameters
+
+//         // Find orders with orders_status = 3 and orders_delivery = deliveryId
+//         const orders = await Order.find({
+//             orders_status: 3,
+//             orders_delivery: deliveryId
+//         }).populate('orders_address'); // Populate address details
+
+//         // Respond with the fetched orders
+//         res.status(200).json(orders);
+//     } catch (error) {
+//         console.error("Error fetching filtered orders:", error);
+//         res.status(500).json({ error: "An error occurred while fetching orders." });
+//     }
+// };
+
+exports.approveOrder = async (req, res) => {
+    try {
+        const orderid = req.body.ordersid;
+        const userid = req.body.usersid;
+        const deliveryid = req.body.deliveryid;
+
+        // تحديث حالة الطلب
+        const updatedOrder = await Order.findOneAndUpdate(
+            { _id: orderid, orders_status: 2 },
+            { orders_status: 3, orders_delivery: deliveryid },
+            { new: true }
+        );
+
+        // تحقق من نتيجة التحديث
+        if (!updatedOrder) {
+            const existingOrder = await Order.findById(orderid);
+            if (!existingOrder) {
+                return res.status(404).json({ message: "Order not found" });
+            } else if (existingOrder.orders_status !== 2) {
+                return res.status(400).json({ message: `Order found but status is ${existingOrder.orders_status}, expected status 2` });
+            }
+        }
+
+        // إدخال الإشعار وإرسال الإشعارات
+        await insertNotify({
+            body: {
+                title: "success",
+                body: "Your order is on the way",
+                userid: userid,
+                topic: `users${userid}`,
+                pageid: "none",
+                pagename: "refreshorderpending"
+            }
+        });
+
+        await sendNotificationToTopic("warning", "The Order Has been Approved by delivery", "services", "none", "none");
+        await sendNotificationToTopic("warning", `The Order Has been Approved by delivery ${deliveryid}`, "delivery", "none", "none");
+
+        res.status(200).json({ message: "Order approved and notifications sent." });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "An error occurred", error });
+    }
+};
+

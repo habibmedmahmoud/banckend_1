@@ -21,5 +21,10 @@ router.post('/resend-verify-code', deliveryController.resendVerifyCode);
 
 // Route GET avec un paramètre deliveryId
 
+// Define the route to get filtered orders by delivery ID
+// router.get('/orders/delivery/:id', deliveryController.getFilteredOrders);
+
+router.post('/approve-order', deliveryController.approveOrder);
+
 
 module.exports = router;

@@ -1,9 +1,15 @@
+// routes/notificationRoutes.js
+
 const express = require('express');
-const { insertNotify } = require('../controllers/notificationController');
+const { insertNotify , getAllNotifications } = require('../controllers/notificationController');
 
 const router = express.Router();
 
-// Route pour envoyer et enregistrer une notification
-router.post('/send', insertNotify);
+// مسار لإدخال وإرسال الإشعار
+router.post('/notify', insertNotify);
+
+// مسار للحصول على جميع الإشعارات بناءً على `userid`
+router.get('/notifications/:userid', getAllNotifications);
+
 
 module.exports = router;

@@ -6,7 +6,7 @@ const admins = [
         admin_email: "bibbrahimsalem@gmail.com",
         admin_phone: "41863676",
         admin_role: 1, // 1 = Admin
-        admin_verify_code: "0",
+        admin_verify_code: "12345",
         admin_approve: 0, // 1 = Approuvé
         admin_password: "123456" // Mot de passe
     },

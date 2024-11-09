@@ -1,10 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const { loginAdmin, uploadImage , verifyAdminCode , resendVerifyCode } = require('../controllers/adminController');
+const { loginAdmin, uploadImage , verifyAdminCode , resendVerifyCode  } = require('../controllers/adminController');
 const { addCategory, deleteCategory, editCategory, getAllCategories } = require('../controllers/admin/categoris/categoryController');
 const { addProduct, deleteProduct, getAllProducts, updateProduct } = require('../controllers/admin/products/ProductController');
 const { uploadProductImage } = require('../utils/imageUpload');
 const { checkEmail , checkVerifyCode , resetPassword }  = require('../controllers/admin/forgetpassword/forgetpasswordController');
+const { approveOrder , getAllOrdersWithAddress ,  processOrderApproval , fetchOrdersWithAddresses } =  require('../controllers/admin/orders/orderController');
 
 // Route POST pour la connexion de l'admin
 router.post('/login', loginAdmin);
@@ -43,5 +44,18 @@ router.post('/products/add', uploadProductImage, addProduct);
 router.delete('/products/delete', deleteProduct);
 router.get('/products', getAllProducts);
 router.put('/products/:id', uploadProductImage, updateProduct);
+
+// orders Routes
+// مسار للموافقة على الطلب
+router.post('/orders/approve-order', approveOrder);
+// Définir la route pour obtenir toutes les commandes avec leurs adresses
+router.get('/orders-with-address', getAllOrdersWithAddress);
+
+// Nouvelle route pour confirmer une commande
+router.post('/order/confirm', processOrderApproval);
+
+// المسار لاسترجاع جميع الطلبات مع العناوين
+router.get('/orders', fetchOrdersWithAddresses);
+
 
 module.exports = router;

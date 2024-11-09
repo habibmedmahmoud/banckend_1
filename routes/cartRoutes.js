@@ -1,15 +1,12 @@
-// routes/cartRoutes.js
-const express = require('express');
-const router = express.Router();
-const cartController = require('../controllers/cartController');
+const express = require('express'); // استيراد express
+const router = express.Router(); // إنشاء راوتر جديد
+const cartController = require('../controllers/cartController'); // استيراد الكنترولر الخاص بالسلة
 
-// Route pour ajouter un produit au panier
-router.post('/add-to-cart', cartController.addToCart);
-router.delete('/delete-from-cart', cartController.deleteFromCart);
-router.get('/get-count-products/:usersid/:productsid', cartController.getCountProducts);
-router.get('/:userid/', cartController.getCartDataByUser);
-
+// تعريف المسارات الخاصة بالسلة
+router.post('/add', cartController.addToCart); // إضافة منتج إلى السلة
+router.delete('/:usersid/:itemsid', cartController.removeFromCart); // حذف منتج من السلة
+router.get('/count/:usersid/:itemsid', cartController.getCountItems); // الحصول على عدد العناصر في السلة
+router.get('/cart/:userId', cartController.getCartDataByUser); // الحصول على بيانات السلة للمستخدم
 
 
-
-module.exports = router;
+module.exports = router; // تصدير الروتر

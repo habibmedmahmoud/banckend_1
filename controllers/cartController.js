@@ -1,191 +1,124 @@
-const mongoose = require('mongoose'); // Importer mongoose
-const Cart = require('../models/cart'); // Importer le modèle Cart
-const Product = require('../models/product'); // Importer le modèle Product
+const mongoose = require('mongoose');
+const Cart = require('../models/cart'); // استيراد نموذج السلة
+const Product = require('../models/product'); // استيراد نموذج المنتج
 const { ObjectId } = require('mongodb'); // استيراد ObjectId من MongoDB
-
-// Fonction pour ajouter un produit au panier
+const { getData , insertData , getAllData  , deleteData} = require("../utils/functions");
+// دالة لإضافة منتج إلى السلة
 exports.addToCart = async (req, res) => {
-    const { usersid, productsid } = req.body;
-  
     try {
-      const newCartItem = new Cart({
-        cart_usersid: usersid,
-        cart_productsid: productsid ,
-        cart_orders: null // القيمة الافتراضية null
-      });
-  
-      await newCartItem.save();
-      res.status(201).json({ message: 'Produit ajouté au panier avec succès.' });
-    } catch (error) {
-      res.status(500).json({ message: 'Erreur lors de l\'ajout au panier.', error });
-    }
-  };
-  
-  
+        const { usersid, itemsid } = req.body;
 
-// Fonction pour supprimer un produit du panier
-exports.deleteFromCart = async (req, res) => {
-    const { usersid, productsid  } = req.body;
-
-    try {
-        // Supprimer le produit du panier en fonction de usersid, itemsid et cart_orders = null
-        const deletedCartItem = await Cart.findOneAndDelete({
+        // إضافة العنصر إلى السلة مباشرة دون التحقق من وجوده
+        const data = {
             cart_usersid: usersid,
-            cart_productsid: productsid,
-            cart_orders: null // Equivalent à "cart_orders = 0" en PHP
-        });
+            cart_productsid: itemsid,
+            cart_orders: null // أو 0 حسب الحاجة
+        };
 
-        // Vérifier si l'article existait et a été supprimé
-        if (!deletedCartItem) {
-            return res.status(404).json({
-                message: "Le produit n'existe pas dans le panier ou la commande a déjà été traitée."
-            });
+        const insertResult = await insertData('cart', data);
+
+        if (insertResult.status === "success") {
+            return res.status(201).json({ status: "success", message: "Item added to cart successfully." });
+        } else {
+            return res.status(500).json({ status: "failure", message: "Failed to add item to cart." });
         }
 
-        // Répondre avec succès si la suppression a eu lieu
-        res.status(200).json({ message: 'Le produit a été supprimé du panier avec succès.' });
     } catch (error) {
-        console.error('Erreur lors de la suppression du produit du panier:', error);
-        res.status(500).json({
-            message: 'Erreur du serveur lors de la suppression du produit du panier.'
-        });
+        console.error("Error adding to cart:", error);
+        return res.status(500).json({ status: "failure", error: error.message });
     }
 };
 
-
-// Contrôleur pour obtenir le nombre de produits pour un utilisateur et un produit spécifique
-exports.getCountProducts = async (req, res) => {
+// Suppression d'un élément du panier
+exports.removeFromCart = async (req, res) => {
     try {
-        // Assurez-vous d'utiliser 'new' pour créer un ObjectId
-        const usersid = new mongoose.Types.ObjectId(req.params.usersid);
-        const productsid = new mongoose.Types.ObjectId(req.params.productsid);
+        // Récupérer les paramètres depuis les paramètres d'URL
+        const { usersid, itemsid } = req.params;
 
-        // Compter les documents correspondants
-        const count = await Cart.countDocuments({
-            cart_usersid: usersid,
-            cart_productsid: productsid,
-            cart_orders: null // Vérification des produits non commandés
-        });
+        // Condition de suppression : utilisateur et produit
+        const condition = {
+            cart_usersid: new ObjectId(usersid), // Utilisation de 'new' pour créer un ObjectId
+            cart_productsid: new ObjectId(itemsid), // Utilisation de 'new' pour créer un ObjectId
+            cart_orders: null // S'assurer que l'ordre est nul
+        };
 
-        // Retourner la réponse avec le nombre de produits
-        res.json({ status: 'success', data: count });
+        // Appeler la fonction deleteData pour supprimer l'élément du panier
+        const result = await deleteData('Cart', condition);
+
+        // Renvoyer la réponse JSON au client
+        res.json(result);
     } catch (error) {
-        console.error('Erreur lors de la récupération du nombre de produits:', error);
-        res.status(500).json({ error: 'Erreur interne du serveur' });
+        res.status(500).json({ status: "error", message: error.message });
     }
 };
 
-exports.getCartDataByUser = async (req, res) => {
-  const userId = req.params.userid; // استلام معرف المستخدم من الطلب
+// Fonction pour obtenir le nombre d'articles dans le panier
+exports.getCountItems = async (req, res) => {
+    try {
+        const { usersid, itemsid } = req.params;
 
-  try {
-      const cartData = await Cart.aggregate([
-          {
-              $match: { cart_usersid: new ObjectId(userId) } // مطابقة المستخدم
-          },
-          {
-              $lookup: {
-                  from: 'products', // اسم مجموعة المنتجات
-                  localField: 'cart_productsid', // الحقل المحلي (معرف المنتج في السلة)
-                  foreignField: '_id', // الحقل الخارجي (معرف المنتج الحقيقي)
-                  as: 'product'
-              }
-          },
-          { $unwind: '$product' }, // فك السلسلة للحصول على تفاصيل المنتج
-          {
-              $group: {
-                  _id: '$cart_productsid', // معرف المنتج في السلة
-                  cart_id: { $first: '$_id' }, // cart_id
-                  cart_usersid: { $first: '$cart_usersid' }, // معرف المستخدم
-                  cart_orders: { $first: '$cart_orders' }, // الطلبات المرتبطة بالسلة
-                  product: { $first: '$product' }, // تفاصيل المنتج
-                  count: { $sum: 1 } // عدد مرات إضافة المنتج
-              }
-          },
-          {
-              $addFields: {
-                  'product.totalprice': {
-                      $multiply: [
-                          {
-                              $subtract: [
-                                  '$product.products_price',
-                                  {
-                                      $multiply: [
-                                          '$product.products_price',
-                                          { $divide: ['$product.products_discount', 100] }
-                                      ]
-                                  }
-                              ]
-                          },
-                          '$count'
-                      ]
-                  },
-                  'product.totalcount': '$count' // عدد مرات الإضافة
-              }
-          },
-          {
-              $project: {
-                  _id: 0,
-                  cart_id: 1,
-                  cart_usersid: 1,
-                  cart_orders: 1,
-                  cart_productsid: '$_id', // معرف المنتج في السلة
-                  // تفاصيل المنتج
-                  "product_id": '$product._id', // معرف المنتج الحقيقي
-                  "products_name": '$product.products_name',
-                  "products_name_ar": '$product.products_name_ar',
-                  "products_desc": '$product.products_desc',
-                  "products_desc_ar": '$product.products_desc_ar',
-                  "products_image": '$product.products_image',
-                  "products_count": '$product.products_count',
-                  "products_active": '$product.products_active',
-                  "products_price": '$product.products_price',
-                  "products_discount": '$product.products_discount',
-                  "products_cat": '$product.products_cat',
-                  "totalprice": '$product.totalprice',
-                  "totalcount": '$product.totalcount'
-              }
-          }
-      ]);
+        // Assurez-vous d'utiliser 'new' pour créer un ObjectId
+        const count = await Cart.countDocuments({
+            cart_usersid: new mongoose.Types.ObjectId(usersid),
+            cart_productsid: new mongoose.Types.ObjectId(itemsid),
+            cart_orders: null
+        });
 
-      if (!cartData.length) {
-          return res.status(404).json({ message: "Aucun article trouvé pour cet utilisateur." });
-      }
-
-      // حساب الإجمالي لكل المنتجات
-      const totalprice = cartData.reduce((sum, item) => sum + item.totalprice, 0);
-      const totalcount = cartData.reduce((sum, item) => sum + item.totalcount, 0);
-
-      // إرسال الرد بالتنسيق المطلوب
-      res.json({
-          status: "success",
-          countprice: {
-              totalprice,
-              totalcount
-          },
-          data: cartData
-      });
-
-  } catch (error) {
-      console.error("Erreur lors de la récupération du panier :", error);
-      res.status(500).json({ message: "Erreur interne du serveur." });
-  }
+        if (count > 0) {
+            return res.json({ status: "success", data: count });
+        } else {
+            return res.json({ status: "success", data: 0 });
+        }
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ status: "error", message: error.message });
+    }
 };
 
 
 
+// دالة للحصول على بيانات العربة (Cart) للمستخدم
+exports.getCartDataByUser = async (req, res) => {
+    try {
+        const userId = req.params.userId;
 
+        // استخدام getAllData لجلب بيانات cartview
+        const data = await getAllData(Cart, { cart_usersid: new mongoose.Types.ObjectId(userId), cart_orders: null }, false);
 
+        // تجميع البيانات لحساب إجمالي السعر وعدد المنتجات
+        const summary = await Cart.aggregate([
+            {
+                $match: { cart_usersid: new mongoose.Types.ObjectId(userId), cart_orders: null }
+            },
+            {
+                $lookup: {
+                    from: "products", // اسم مجموعة المنتجات
+                    localField: "cart_productsid",
+                    foreignField: "_id",
+                    as: "productDetails"
+                }
+            },
+            {
+                $unwind: "$productDetails" // توسيع البيانات المجمعة من المنتجات
+            },
+            {
+                $group: {
+                    _id: "$cart_usersid",
+                    totalprice: { $sum: "$productDetails.products_price" },
+                    totalcount: { $sum: 1 }
+                }
+            }
+        ]);
 
+        // إذا لم يتم العثور على أي نتائج في التجميع، نرجع قيم افتراضية
+        const countprice = summary.length > 0 ? summary[0] : { totalprice: 0, totalcount: 0 };
 
-
-
-
-
-
-
-
-
-
-
-
+        res.json({
+            status: "success",
+            countprice: countprice,
+            datacart: data
+        });
+    } catch (error) {
+        res.status(500).json({ status: "error", message: error.message });
+    }
+};

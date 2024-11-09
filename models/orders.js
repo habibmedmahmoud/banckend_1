@@ -20,6 +20,11 @@ const orderSchema = new mongoose.Schema({
         type: Number,   
         default: 0
     },
+    orders_delivery: {
+        type: mongoose.Schema.Types.ObjectId,  // Référence إلى كيان التوصيل
+        ref: 'Delivery',  // Jointure مع نموذج Delivery
+        default: null
+    },
     orders_price: {
         type: Number,   
         required: true

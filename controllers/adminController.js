@@ -4,6 +4,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs'); // Gestion des fichiers
 const { sendEmail }= require('../Email/testEmail');
+
 // Fonction de connexion d'un administrateur
 exports.loginAdmin = async (req, res) => {
     const { email, password } = req.body;
@@ -102,6 +103,7 @@ exports.resendVerifyCode = async (req, res) => {
 };
 
 
+// pour de notifi
 
 
 

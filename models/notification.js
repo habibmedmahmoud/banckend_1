@@ -1,25 +1,25 @@
+// models/Notification.js
+
 const mongoose = require('mongoose');
 
-// Définir le schéma de la notification
-const NotificationSchema = new mongoose.Schema({
-  notification_title: { 
-    type: String, 
-    required: true 
+// تعريف بنية الإشعار
+const notificationSchema = new mongoose.Schema({
+  notification_title: {
+    type: String,
+    required: true,
   },
-  notification_body: { 
-    type: String, 
-    required: true 
+  notification_body: {
+    type: String,
+    required: true,
   },
-  notification_userid: { 
-    type: mongoose.Schema.Types.ObjectId,
-     ref: 'User', required: true 
-    }, // Référence à l'utilisateur
- 
+  notification_userid: {
+    type: mongoose.Schema.Types.ObjectId, // يمكن أن يكون ObjectId لمعرف المستخدم
+    required: true,
   },
-  {
-    timestamps: true // Active createdAt et updatedAt automatiquement
-  }
-);
+}, {
+  timestamps: true // لحفظ وقت الإنشاء والتحديث
+});
 
-// Exporter le modèle
-module.exports = mongoose.model('Notification', NotificationSchema);
+const Notification = mongoose.model('Notification', notificationSchema);
+
+module.exports = Notification;
