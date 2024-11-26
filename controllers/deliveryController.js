@@ -4,8 +4,11 @@ const crypto = require('crypto');
 const  { sendEmail } = require('../Email/testEmail');
 const Order = require('../models/orders');
 const mongoose = require('mongoose');
-const { sendNotificationToTopic} = require('../notificationService'); // تأكد من تعديل المسار حسب هيكل مشروعك
+const sendNotificationToTopic = require('../notificationService'); // تأكد من تعديل المسار حسب هيكل مشروعك
 const { insertNotify } = require('../controllers/notificationController');
+const { ObjectId } = require("mongoose").Types;
+const Cart = require('../models/cart');
+
 
 // وظيفة التسجيل
 exports.signup = async (req, res) => {
@@ -247,67 +250,315 @@ exports.resendVerifyCode = async (req, res) => {
 
 // accepted 
 
-// // Controller function to get filtered orders
-// exports.getFilteredOrders = async (req, res) => {
-//     try {
-//         const deliveryId = req.params.id; // Get the delivery ID from the request parameters
-
-//         // Find orders with orders_status = 3 and orders_delivery = deliveryId
-//         const orders = await Order.find({
-//             orders_status: 3,
-//             orders_delivery: deliveryId
-//         }).populate('orders_address'); // Populate address details
-
-//         // Respond with the fetched orders
-//         res.status(200).json(orders);
-//     } catch (error) {
-//         console.error("Error fetching filtered orders:", error);
-//         res.status(500).json({ error: "An error occurred while fetching orders." });
-//     }
-// };
-
-exports.approveOrder = async (req, res) => {
+// Controller function to get filtered orders
+exports.getFilteredOrders = async (req, res) => {
     try {
-        const orderid = req.body.ordersid;
-        const userid = req.body.usersid;
-        const deliveryid = req.body.deliveryid;
+        const deliveryId = req.params.id; // Get the delivery ID from the request parameters
 
-        // تحديث حالة الطلب
-        const updatedOrder = await Order.findOneAndUpdate(
-            { _id: orderid, orders_status: 2 },
-            { orders_status: 3, orders_delivery: deliveryid },
-            { new: true }
-        );
+        // Find orders with orders_status = 3 and orders_delivery = deliveryId
+        const orders = await Order.find({
+            orders_status: 3,
+            orders_delivery: deliveryId
+        }).populate('orders_address'); // Populate address details
 
-        // تحقق من نتيجة التحديث
-        if (!updatedOrder) {
-            const existingOrder = await Order.findById(orderid);
-            if (!existingOrder) {
-                return res.status(404).json({ message: "Order not found" });
-            } else if (existingOrder.orders_status !== 2) {
-                return res.status(400).json({ message: `Order found but status is ${existingOrder.orders_status}, expected status 2` });
-            }
-        }
-
-        // إدخال الإشعار وإرسال الإشعارات
-        await insertNotify({
-            body: {
-                title: "success",
-                body: "Your order is on the way",
-                userid: userid,
-                topic: `users${userid}`,
-                pageid: "none",
-                pagename: "refreshorderpending"
-            }
-        });
-
-        await sendNotificationToTopic("warning", "The Order Has been Approved by delivery", "services", "none", "none");
-        await sendNotificationToTopic("warning", `The Order Has been Approved by delivery ${deliveryid}`, "delivery", "none", "none");
-
-        res.status(200).json({ message: "Order approved and notifications sent." });
+        // Respond with the fetched orders
+        res.status(200).json(orders);
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: "An error occurred", error });
+        console.error("Error fetching filtered orders:", error);
+        res.status(500).json({ error: "An error occurred while fetching orders." });
     }
 };
+// approve 
+exports.approveOrder = async (req, res) => {
+    try {
+        // Extraction des données envoyées dans le corps de la requête
+        const { orderid, userid, deliveryid } = req.body;
+
+        // Vérification de la présence des données nécessaires
+        if (!orderid || !userid || !deliveryid) {
+            return res.status(400).json({ message: "Données manquantes." });
+        }
+
+        // Utilisation de new pour instancier l'ObjectId
+        const updatedOrder = await Order.findOneAndUpdate(
+            { _id: new ObjectId(orderid), orders_status: 2 }, // Condition avec new ObjectId
+            { orders_status: 3, orders_delivery: deliveryid }, // Données à mettre à jour
+            { new: true } // Retourne le document mis à jour
+        );
+
+        // Vérification si la commande a été trouvée et mise à jour
+        if (!updatedOrder) {
+            return res.status(404).json({ message: "Commande non trouvée ou statut incorrect." });
+        }
+
+        // Envoi d'une notification au sujet de l'utilisateur
+        await sendNotificationToTopic(
+            "success",
+            "La commande a été approuvée.",
+            `users${userid}`,
+            "none",
+            "refreshorderpending"
+        );
+
+        // Insertion d'une notification dans la base de données
+        await insertNotify(
+            "success",
+            "Votre commande est en cours de livraison.",
+            userid,
+            `users${userid}`,
+            "none",
+            "refreshorderpending"
+        );
+
+        // Envoi d'une notification pour d'autres services
+        await sendNotificationToTopic(
+            "warning",
+            "La commande a été approuvée par le service de livraison.",
+            "services",
+            "none",
+            "none"
+        );
+
+        // Envoi d'une notification au service de livraison
+        await sendNotificationToTopic(
+            "warning",
+            `La commande a été approuvée par le service de livraison ${deliveryid}`,
+            "delivery",
+            "none",
+            "none"
+        );
+
+        // Réponse de succès
+        res.status(200).json({
+            message: "Commande approuvée avec succès.",
+            order: updatedOrder,
+        });
+    } catch (error) {
+        console.error("Erreur lors de l'approbation de la commande :", error);
+        res.status(500).json({
+            message: "Erreur lors de l'approbation de la commande.",
+            error: error.message,
+        });
+    }
+};
+
+// archive 
+// Fonction pour récupérer les commandes filtrées par statut et livreur
+exports.fetchOrdersForDelivery = async (req, res) => {
+    try {
+        const deliveryId = req.params.id; // Récupérer l'ID du livreur à partir des paramètres de la requête
+
+        // Recherche des commandes où orders_status = 4 et orders_delivery correspond à l'ID du livreur
+        const orders = await Order.find({
+            orders_status: 4,
+            orders_delivery: deliveryId
+        })
+        .populate('orders_address'); // Effectuer une jointure avec le modèle Address
+
+        // Vérifier si des commandes ont été trouvées
+        if (orders.length === 0) {
+            return res.status(404).json({ message: "Aucune commande trouvée avec les critères donnés." });
+        }
+
+        // Répondre avec les commandes filtrées
+        res.status(200).json(orders);
+    } catch (error) {
+        console.error("Erreur lors de la récupération des commandes filtrées:", error);
+        res.status(500).json({ error: "Une erreur est survenue lors de la récupération des commandes." });
+    }
+};
+
+
+// details 
+
+// Nouvelle fonction pour récupérer les détails de la commande
+exports.fetchOrderDetails = async (req, res) => {
+    const orderId = req.params.id;
+
+    try {
+        // Vérification de l'ID de la commande
+        if (!mongoose.Types.ObjectId.isValid(orderId)) {
+            return res.status(400).json({ message: "ID de commande non valide" });
+        }
+
+        // Récupération de la commande
+        const order = await Order.findById(orderId).populate('orders_usersid');
+        if (!order) {
+            return res.status(404).json({ message: "Commande non trouvée" });
+        }
+
+        // Récupérer les articles du panier associés à cette commande
+        const carts = await Cart.aggregate([
+            {
+                $match: { cart_orders: new mongoose.Types.ObjectId(orderId) }
+            },
+            {
+                $lookup: {
+                    from: 'products',
+                    localField: 'cart_productsid',
+                    foreignField: '_id',
+                    as: 'productData'
+                }
+            },
+            {
+                $unwind: "$productData"
+            },
+            {
+                $group: {
+                    _id: "$productData._id", // Agrégation par produit
+                    totalprice: {
+                        $sum: {
+                            $multiply: [
+                                {
+                                    $subtract: [
+                                        "$productData.products_price",
+                                        { $multiply: ["$productData.products_price", { $divide: ["$productData.products_discount", 100] }] }
+                                    ]
+                                },
+                                { $ifNull: ["$count", 1] }
+                            ]
+                        }
+                    },
+                    totalcount: { $sum: { $ifNull: ["$count", 1] } },
+                    productDetails: { $first: "$productData" },
+                    cartUsersId: { $first: "$cart_usersid" },
+                    cartProductId: { $first: "$cart_productsid" },
+                    cartOrders: { $first: "$cart_orders" }
+                }
+            }
+        ]);
+
+        if (!carts.length) {
+            return res.status(404).json({ message: "Aucun produit trouvé dans cette commande" });
+        }
+
+        // Détails des produits dans la commande
+        const productsDetails = carts.map(cartItem => {
+            const product = cartItem.productDetails;
+            const priceAfterDiscount = product.products_price - (product.products_price * product.products_discount / 100);
+
+            return {
+                productId: product._id,
+                productName: product.products_name,
+                productName_ar: product.products_name_ar, 
+                productDesc: product.products_desc,
+                productDesc_ar: product.products_desc_ar,
+                productImage: product.products_image,
+                productCount: cartItem.totalcount,
+                originalPrice: product.products_price,
+                discount: product.products_discount,
+                priceAfterDiscount: priceAfterDiscount,
+                totalPrice: cartItem.totalprice.toFixed(2),
+                totalCount: cartItem.totalcount,
+                productCat: product.products_cat,
+                productActive: product.products_active,
+                cart_usersid: cartItem.cartUsersId || null,
+                cart_productsid: cartItem.cartProductId || null,
+                cart_orders: cartItem.cartOrders || null
+            };
+        });
+
+        // Calcul du prix total et de la quantité totale
+        const totalPrice = carts.reduce((sum, item) => sum + item.totalprice, 0).toFixed(2);
+        const totalCount = carts.reduce((sum, item) => sum + item.totalcount, 0);
+
+        // Construction de la réponse
+        const response = {
+            status: "success",
+            countprice: {
+                totalprice: totalPrice,
+                totalcount: totalCount
+            },
+            datacart: productsDetails
+        };
+
+        return res.status(200).json(response);
+    } catch (error) {
+        console.error("Erreur lors de la récupération des détails de la commande:", error);
+        return res.status(500).json({ message: "Erreur interne du serveur" });
+    }
+};
+
+//done 
+// Fonction pour mettre à jour le statut de la commande et envoyer les notifications
+exports.updateOrderStatusAndNotify = async (req, res) => {
+    const { orderid, userid } = req.body;
+
+    try {
+        // Vérification des paramètres
+        if (!orderid || !userid) {
+            return res.status(400).json({ message: "Order ID and User ID are required" });
+        }
+
+        // Mise à jour du statut de la commande à 4 (Livré)
+        const updatedOrder = await Order.findOneAndUpdate(
+            { _id: orderid, orders_status: 3 }, // Chercher une commande avec status 3 (en attente)
+            { $set: { orders_status: 4 } }, // Mettre à jour le statut à 4 (Livré)
+            { new: true } // Retourner la commande mise à jour
+        );
+
+        if (!updatedOrder) {
+            return res.status(404).json({ message: "Order not found or already updated" });
+        }
+
+        // Notification à l'utilisateur
+        await insertNotify(
+            "success", 
+            "Your Order Has been delivered", 
+            userid, 
+            `users${userid}`, // Formater le nom du destinataire
+            "none", 
+            "refreshorderpending"
+        );
+
+        // Envoi de la notification GCM à l'utilisateur
+        await sendNotificationToTopic(
+            "success", 
+            "The Order Has been Approved", 
+            `users${userid}`, // Destinataire: l'utilisateur
+            "none", 
+            "refreshorderpending"
+        );
+
+        // Notification à "services" pour informer qu'une commande a été livrée
+        await sendNotificationToTopic(
+            "warning", 
+            "The Order Has been delivered to The Customer", 
+            "services", // Destinataire: services
+            "none", 
+            "none"
+        );
+
+        // Réponse réussie
+        return res.status(200).json({ message: "Order status updated and notifications sent" });
+
+    } catch (error) {
+        console.error("Error during order update and notification:", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+};
+//
+// pending 
+
+exports.getOrdersWithAddress = async (req, res) => {
+    try {
+      // Recherche de toutes les commandes avec un statut 2
+      const orders = await Order.find({ orders_status: 2 })
+        .populate('orders_address')  // Jointure avec la collection Address
+        .exec();
+  
+      // Vérifier si des commandes ont été trouvées
+      if (!orders || orders.length === 0) {
+        return res.status(404).json({ message: 'Aucune commande trouvée avec ce statut.' });
+      }
+  
+      // Réponse avec les commandes et leurs informations d'adresse
+      return res.status(200).json({ orders });
+    } catch (error) {
+      // Gestion des erreurs
+      console.error("Erreur lors de la récupération des commandes avec les adresses : ", error);
+      return res.status(500).json({ message: 'Erreur interne du serveur' });
+    }
+  };
+
 

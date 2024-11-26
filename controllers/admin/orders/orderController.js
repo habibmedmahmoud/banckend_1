@@ -1,37 +1,59 @@
 // controllers/orderController.js
 const Order = require('../../../models/orders'); // تأكد من استيراد النموذج الصحيح
 const Notification = require('../../../models/notification');
-const { sendNotificationToTopic } = require('../../../notificationService');
+const { insertNotify } = require('../../notificationController');
+const  sendNotificationToTopic = require('../../../notificationService');
+
+
 
 
 // approve 
-// دالة للموافقة على الطلب
 const approveOrder = async (req, res) => {
-    const orderid = req.body.ordersid; // استرداد معرف الطلب من جسم الطلب
-    const userid = req.body.usersid; // استرداد معرف المستخدم من جسم الطلب
+    const { ordersid, usersid } = req.body; // Récupérer les données de la requête
 
     try {
-        // تحديث حالة الطلب إلى 1 حيث تكون الحالة الحالية 0
-        await Order.updateOne({ _id: orderid, orders_status: 0 }, { orders_status: 1 });
+        // Mise à jour de l'état de la commande
+        const updatedOrder = await Order.updateOne(
+            { _id: ordersid, orders_status: 0 }, // Condition : ID de commande et statut = 0
+            { $set: { orders_status: 1 } }       // Mise à jour : statut = 1
+        );
 
-        // إدخال إشعار في قاعدة البيانات
-        const notificationData = {
-            notification_title: "success",
-            notification_body: "The Order Has been Approved",
-            notification_userid: userid,
-        };
-        
-        const newNotification = new Notification(notificationData);
-        await newNotification.save();
+        // Vérifier si une commande a été mise à jour
+        if (updatedOrder.matchedCount === 0) {
+            return res.status(404).json({ message: "Commande introuvable ou déjà mise à jour" });
+        }
 
-        // إرسال الإشعار إلى FCM
-        await sendNotificationToTopic("success", "The Order Has been Approved", `users${userid}`, "none", "refreshorderpending");
+        // Ajouter une notification pour l'utilisateur
+        await insertNotify(
+            "success", 
+            "The Order Has been Approved", 
+            usersid, 
+            `users${usersid}`, 
+            "none", 
+            "refreshorderpending"
+        );
 
-        res.status(200).json({ message: 'الطلب تمت الموافقة عليه والإشعار تم إرساله بنجاح' });
+        // Envoyer une notification push
+        await sendNotificationToTopic(
+            "success", 
+            "The Order Has been Approved", 
+            `users${usersid}`, 
+            "none", 
+            "refreshorderpending"
+        );
+
+        // Réponse en cas de succès
+        res.status(200).json({ message: "Commande mise à jour avec succès et notification envoyée" });
     } catch (error) {
-        res.status(500).json({ message: 'حدث خطأ أثناء معالجة الطلب', error: error.message });
+        console.error("Erreur lors de la mise à jour de la commande :", error);
+        res.status(500).json({ message: "Erreur interne du serveur" });
     }
-}
+};
+
+
+
+  
+  
 
 // archive 
 // Fonction pour récupérer toutes les commandes avec leur adresse

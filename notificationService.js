@@ -1,45 +1,56 @@
 const admin = require("firebase-admin");
+const fetch = require("node-fetch");
 
-// تهيئة Firebase Admin باستخدام ملف مفتاح الخدمة
+// Charger le fichier JSON pour les clés de service Firebase
 const serviceAccount = require("./user-app-firebase-a9e59-firebase-adminsdk-cdl8u-8a71a9726a.json");
 
+// Initialiser Firebase Admin SDK
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
 });
 
-// دالة لإرسال إشعار إلى موضوع (topic) محدد
-async function sendNotificationToTopic(title, body, topic, pageid = "", pagename = "") {
-  const message = {
-    topic: topic, // اسم الموضوع الذي سيتم إرسال الإشعار له
-    notification: {
-      title: title,
-      body: body,
-    },
-    data: {
-      pageid: pageid,
-      pagename: pagename,
-    },
-  };
-
+// Fonction pour envoyer une notification à un topic
+async function sendNotificationToTopic(title, body, topic) {
   try {
-    // إرسال الرسالة إلى Firebase Cloud Messaging
-    const response = await admin.messaging().send(message);
-    console.log("تم إرسال الرسالة بنجاح:", response);
+    const url = `https://fcm.googleapis.com/v1/projects/user-app-firebase-a9e59/messages:send`;
+
+    // Construire le payload
+    const payload = {
+      message: {
+        topic: topic,
+        notification: {
+          title: title,
+          body: body,
+        },
+      },
+    };
+
+    // Obtenir le token d'accès pour l'authentification
+    const token = await admin.credential.cert(serviceAccount).getAccessToken();
+    const accessToken = token.access_token;
+
+    // Envoyer la requête HTTP POST
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await response.json();
+    if (response.ok) {
+      console.log("Notification envoyée avec succès :", data);
+    } else {
+      console.error("Erreur lors de l'envoi de la notification :", data);
+    }
+
+    return data;
   } catch (error) {
-    console.error("خطأ أثناء إرسال الرسالة:", error);
+    console.error("Erreur lors de l'envoi :", error);
+    throw error;
   }
 }
-
-
-module.exports = {
-  sendNotificationToTopic,
-};
-
-// // استدعاء الدالة مع القيم المطلوبة للإشعار
-// sendNotificationToTopic(
-//   "Titre de la notification",      // عنوان الإشعار
-//   "Contenu de la notification",    // محتوى الإشعار
-//   "users6707407c09aac849e3f822d8", // الـ topic المطلوب
-//   "",                              // معرف الصفحة (يمكن تركه فارغًا)
-//   ""                               // اسم الصفحة (يمكن تركه فارغًا)
-// );
+// Exporter la fonction
+module.exports = sendNotificationToTopic;

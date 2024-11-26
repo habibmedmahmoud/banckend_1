@@ -1,29 +1,36 @@
 const Notification = require('../models/notification');
-const  { sendNotificationToTopic } = require('../notificationService');
+const  sendNotificationToTopic  = require('../notificationService');
 
 
 // دالة لإدخال الإشعار وإرساله إلى FCM
-async function insertNotify({ title, body, userid, topic, pageid, pagename }) {
+// Fonction pour insérer une notification dans la base de données et l'envoyer à FCM
+async function insertNotify(title, body, userid, topic, pageid, pagename) {
   try {
-      // إدخال الإشعار في قاعدة البيانات
-      const newNotification = new Notification({
-          notification_title: title,
-          notification_body: body,
-          notification_userid: userid,
-      });
-      
-      const result = await newNotification.save();
+    // Créer une nouvelle notification dans la base de données
+    const newNotification = new Notification({
+      notification_title: title,
+      notification_body: body,
+      notification_userid: userid,
+    });
 
-      // إرسال الإشعار إلى FCM
-      await sendNotificationToTopic(title, body, topic, pageid, pagename);
+    // Sauvegarder la notification dans la base de données
+    const result = await newNotification.save();
+    console.log("Notification enregistrée:", result);
 
-      // إرجاع النتيجة في حال الحاجة
-      return { message: 'تم إدخال الإشعار وإرساله بنجاح', notification: result };
+    // Envoyer la notification à FCM
+    await sendNotificationToTopic(title, body, topic, false); // false pour indiquer qu'on envoie à un utilisateur, pas un topic
+
+    // Retourner la réponse indiquant le succès
+    return { message: 'Notification insérée et envoyée avec succès.', notification: result };
   } catch (error) {
-      // إلقاء الخطأ ليتم التعامل معه في الدالة `approveOrder`
-      throw new Error('حدث خطأ أثناء معالجة الطلب: ' + error.message);
+    // Gérer les erreurs
+    console.error("Erreur lors de l'insertion de la notification:", error);
+    throw new Error('Erreur lors du traitement de la notification: ' + error.message);
   }
 }
+
+
+
 
 
   // دالة لاسترداد جميع الإشعارات بناءً على معرف المستخدم
