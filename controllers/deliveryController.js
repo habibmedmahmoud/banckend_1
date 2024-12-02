@@ -253,19 +253,51 @@ exports.resendVerifyCode = async (req, res) => {
 // Controller function to get filtered orders
 exports.getFilteredOrders = async (req, res) => {
     try {
-        const deliveryId = req.params.id; // Get the delivery ID from the request parameters
+        const deliveryId = req.params.id; // Récupérer l'identifiant de livraison depuis les paramètres de la requête
 
-        // Find orders with orders_status = 3 and orders_delivery = deliveryId
+        // Trouver les commandes avec orders_status = 3 et orders_delivery = deliveryId
         const orders = await Order.find({
             orders_status: 3,
             orders_delivery: deliveryId
-        }).populate('orders_address'); // Populate address details
+        }).populate('orders_address'); // Inclure les détails de l'adresse
 
-        // Respond with the fetched orders
-        res.status(200).json(orders);
+        // Reformater les données pour inclure les informations d'adresse directement
+        const formattedOrders = orders.map(order => ({
+            _id: order._id,
+            orders_usersid: order.orders_usersid,
+            orders_address: order.orders_address._id,
+            address_usersid: order.orders_address.address_usersid,
+            address_name: order.orders_address.address_name,
+            address_city: order.orders_address.address_city,
+            address_street: order.orders_address.address_street,
+            address_lat: order.orders_address.address_lat,
+            address_long: order.orders_address.address_long,
+            createdAt: order.orders_address.createdAt,
+            updatedAt: order.orders_address.updatedAt,
+            orders_type: order.orders_type,
+            orders_pricedelivery: order.orders_pricedelivery,
+            orders_price: order.orders_price,
+            orders_coupon: order.orders_coupon,
+            orders_payment: order.orders_payment,
+            orders_totalprice: order.orders_totalprice,
+            orders_status: order.orders_status,
+            orders_rating: order.orders_rating,
+            orders_noterating: order.orders_noterating,
+            orders_datetime: order.orders_datetime,
+            orders_delivery: order.orders_delivery,
+        }));
+
+        // Envoyer une réponse structurée
+        res.status(200).json({
+            status: "success",
+            data: formattedOrders
+        });
     } catch (error) {
         console.error("Error fetching filtered orders:", error);
-        res.status(500).json({ error: "An error occurred while fetching orders." });
+        res.status(500).json({ 
+            status: "error",
+            message: "An error occurred while fetching orders."
+        });
     }
 };
 // approve 
@@ -542,23 +574,59 @@ exports.updateOrderStatusAndNotify = async (req, res) => {
 
 exports.getOrdersWithAddress = async (req, res) => {
     try {
-      // Recherche de toutes les commandes avec un statut 2
-      const orders = await Order.find({ orders_status: 2 })
-        .populate('orders_address')  // Jointure avec la collection Address
-        .exec();
-  
-      // Vérifier si des commandes ont été trouvées
-      if (!orders || orders.length === 0) {
-        return res.status(404).json({ message: 'Aucune commande trouvée avec ce statut.' });
-      }
-  
-      // Réponse avec les commandes et leurs informations d'adresse
-      return res.status(200).json({ orders });
+        // Recherche de toutes les commandes avec un statut 2
+        const orders = await Order.find({ orders_status: 2 })
+            .populate('orders_address') // Jointure avec la collection Address
+            .exec();
+
+        // Vérifier si des commandes ont été trouvées
+        if (!orders || orders.length === 0) {
+            return res.status(404).json({
+                status: "error",
+                message: "Aucune commande trouvée avec ce statut."
+            });
+        }
+
+        // Reformater les données pour inclure les informations d'adresse directement
+        const formattedOrders = orders.map(order => ({
+            _id: order._id,
+            orders_usersid: order.orders_usersid,
+            orders_address: order.orders_address._id,
+            address_usersid: order.orders_address.address_usersid,
+            address_name: order.orders_address.address_name,
+            address_city: order.orders_address.address_city,
+            address_street: order.orders_address.address_street,
+            address_lat: order.orders_address.address_lat,
+            address_long: order.orders_address.address_long,
+            createdAt: order.orders_address.createdAt,
+            updatedAt: order.orders_address.updatedAt,
+            orders_type: order.orders_type,
+            orders_pricedelivery: order.orders_pricedelivery,
+            orders_price: order.orders_price,
+            orders_coupon: order.orders_coupon,
+            orders_payment: order.orders_payment,
+            orders_totalprice: order.orders_totalprice,
+            orders_status: order.orders_status,
+            orders_rating: order.orders_rating,
+            orders_noterating: order.orders_noterating,
+            orders_datetime: order.orders_datetime,
+            orders_delivery: order.orders_delivery,
+        }));
+
+        // Réponse avec les commandes formatées
+        return res.status(200).json({
+            status: "success",
+            data: formattedOrders
+        });
     } catch (error) {
-      // Gestion des erreurs
-      console.error("Erreur lors de la récupération des commandes avec les adresses : ", error);
-      return res.status(500).json({ message: 'Erreur interne du serveur' });
+        // Gestion des erreurs
+        console.error("Erreur lors de la récupération des commandes avec les adresses : ", error);
+        return res.status(500).json({
+            status: "error",
+            message: "Erreur interne du serveur"
+        });
     }
-  };
+};
+
 
 
