@@ -392,8 +392,38 @@ exports.fetchOrdersForDelivery = async (req, res) => {
             return res.status(404).json({ message: "Aucune commande trouvée avec les critères donnés." });
         }
 
-        // Répondre avec les commandes filtrées
-        res.status(200).json(orders);
+        // إعادة تنسيق البيانات للحصول على البنية المطلوبة
+        const formattedOrders = orders.map(order => ({
+            _idorder: order._id,
+            orders_usersid: order.orders_usersid,
+            orders_type: order.orders_type,
+            orders_pricedelivery: order.orders_pricedelivery,
+            orders_price: order.orders_price,
+            orders_coupon: order.orders_coupon,
+            orders_payment: order.orders_payment,
+            orders_totalprice: order.orders_totalprice,
+            orders_status: order.orders_status,
+            orders_rating: order.orders_rating,
+            orders_noterating: order.orders_noterating,
+            orders_datetime: order.orders_datetime,
+            orders_delivery: order.orders_delivery,
+            _idadrres: order.orders_address?._id,
+            address_usersid: order.orders_address?.address_usersid,
+            address_name: order.orders_address?.address_name,
+            address_city: order.orders_address?.address_city,
+            address_street: order.orders_address?.address_street,
+            address_lat: order.orders_address?.address_lat,
+            address_long: order.orders_address?.address_long,
+            createdAt: order.createdAt,
+            updatedAt: order.updatedAt,
+            __v: order.__v
+        }));
+
+        // إرسال الاستجابة بالبيانات المنسقة
+        res.status(200).json({
+            status: "success",
+            data: formattedOrders
+        });
     } catch (error) {
         console.error("Erreur lors de la récupération des commandes filtrées:", error);
         res.status(500).json({ error: "Une erreur est survenue lors de la récupération des commandes." });
